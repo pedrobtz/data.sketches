@@ -1,0 +1,56 @@
+url: https://pedrobtz.github.io/data.sketches/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Quantile sketches
+  desc: >
+    KLL, REQ, and t-Digest sketches for approximate quantiles, ranks, CDF, and
+    PMF. t-Digest concentrates accuracy near the tails of the distribution.
+  contents:
+  - kll_doubles
+  - kll_floats
+  - req
+  - tdigest_double
+- title: Cardinality sketches
+  desc: >
+    HLL, CPC, and Theta sketches for approximate distinct counting. Theta
+    sketches additionally support set operations.
+  contents:
+  - hll
+  - cpc
+  - theta
+  - theta_set_operations
+- title: Frequency sketches
+  desc: >
+    Frequent Items and Count-Min sketches for approximate frequency
+    estimation over a numeric or character stream.
+  contents:
+  - frequent_items
+  - count_min
+  - count_min_suggest
+- title: Tuple sketches
+  desc: >
+    Array of Doubles sketches, a Theta-extension that associates a fixed-size
+    array of doubles with each retained key, for approximate distinct
+    counting alongside per-column sums. Supports set operations.
+  contents:
+  - array_of_doubles
+  - array_of_doubles_set_operations
+- title: Sampling sketches
+  desc: >
+    VarOpt and EBPPS sketches sample weighted items from a stream:
+    VarOpt for variance-optimal subset-sum estimation, and EBPPS as a
+    modern alternative to reservoir sampling.
+  contents:
+  - varopt
+  - varopt_union
+  - ebpps
+- title: Filters
+  desc: >
+    Bloom filters for approximate set membership, sized up front by accuracy
+    or by an explicit number of bits and hash functions.
+  contents:
+  - bloom_filter
+  - bloom_filter_suggest

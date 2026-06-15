@@ -1,0 +1,18 @@
+CXX_STD = CXX17
+
+# Vendored Apache DataSketches C++ headers live under src/datasketches/.
+PKG_CPPFLAGS = \
+	-Idatasketches/common/include \
+	-Idatasketches/count/include \
+	-Idatasketches/cpc/include \
+	-Idatasketches/density/include \
+	-Idatasketches/fi/include \
+	-Idatasketches/filters/include \
+	-Idatasketches/hll/include \
+	-Idatasketches/kll/include \
+	-Idatasketches/quantiles/include \
+	-Idatasketches/req/include \
+	-Idatasketches/sampling/include \
+	-Idatasketches/tdigest/include \
+	-Idatasketches/theta/include \
+	-Idatasketches/tuple/include

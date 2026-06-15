@@ -1,0 +1,33 @@
+data.sketches package
+====================
+
+Copyright (c) 2026 Pedro Baltazar.
+Licensed under the MIT license; see DESCRIPTION and the file LICENSE for
+license and copyright details.
+
+Bundled third-party code
+========================
+
+src/datasketches/
+-----------------
+
+This directory vendors header-only sources from the Apache DataSketches C++
+library, version 5.2.0 (https://github.com/apache/datasketches-cpp), refreshed
+via tools/update-datasketches-cpp.R.
+
+  Copyright 2025 The Apache Software Foundation
+  Copyright 2015-2018 Yahoo Inc.
+  Copyright 2019-2020 Verizon Media
+  Copyright 2021- Yahoo Inc.
+
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use these files except in compliance with the License. You may obtain a copy
+of the License at
+
+  https://www.apache.org/licenses/LICENSE-2.0
+
+The original license and notice are preserved at src/datasketches/LICENSE and
+src/datasketches/NOTICE. The Apache License, Version 2.0 and the package's own
+MIT license are separate and apply to their respective files; the
+MIT license covers only the data.sketches R and C++ bridge code authored for
+this package, not the vendored Apache DataSketches sources.

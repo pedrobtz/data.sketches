@@ -1,0 +1,10 @@
+.Rproj.user
+.Rhistory
+.positai
+.DS_Store
+docs
+*.dll
+*.o
+*.so
+
+/.quarto/
