@@ -18,6 +18,7 @@ set.seed(2026)
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml)
+[![coverage](https://raw.githubusercontent.com/pedrobtz/data.sketches/main/.github/badges/coverage.svg)](https://github.com/pedrobtz/data.sketches/actions/workflows/coverage.yaml)
 <!-- badges: end -->
 
 data.sketches provides an R interface to the [Apache
