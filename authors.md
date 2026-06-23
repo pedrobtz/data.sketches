@@ -4,8 +4,18 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
-- **The Apache Software Foundation**. Copyright holder.  
-  Copyright holder of the bundled Apache DataSketches C++ library
+- **The Apache Software Foundation**. Contributor.  
+  Author of bundled Apache DataSketches C++ code
+
+- **Stephan Brumme**. Contributor.  
+  Author of bundled xxhash64.h code
+
+- **Austin Appleby**. Contributor.  
+  Author of bundled public-domain MurmurHash3 code
+
+- **Sean Eron Anderson**. Contributor.  
+  Author of bundled public-domain bit-hack code used in
+  ceiling_power_of_2.hpp
 
 ## Citation
 
