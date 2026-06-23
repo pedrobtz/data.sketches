@@ -1,11 +1,21 @@
 Package: data.sketches
 Title: Probabilistic Streaming Data Sketches
 Version: 0.1.0
-Authors@R: c(
-    person("Pedro", "Baltazar", , "pedrobtz@gmail.com",
+Authors@R: Authors@R: c(
+    person("Pedro", "Baltazar", email = "pedrobtz@gmail.com",
            role = c("aut", "cre", "cph")),
-    person("The Apache Software Foundation", role = "cph",
-           comment = "Copyright holder of the bundled Apache DataSketches C++ library")
+    person("The Apache Software Foundation", role = c("ctb", "cph"),
+           comment = "Author and copyright holder of bundled Apache DataSketches C++ code"),
+    person("Yahoo Inc.", role = "cph",
+           comment = "Copyright holder of portions of bundled Apache DataSketches C++ code"),
+    person("Verizon Media", role = "cph",
+           comment = "Copyright holder of portions of bundled Apache DataSketches C++ code"),
+    person("Stephan", "Brumme", role = c("ctb", "cph"),
+           comment = "Author and copyright holder of bundled xxhash64.h code"),
+    person("Austin", "Appleby", role = "ctb",
+           comment = "Author of bundled public-domain MurmurHash3 code"),
+    person(c("Sean", "Eron"), "Anderson", role = "ctb",
+           comment = "Author of bundled public-domain bit-hack code used in ceiling_power_of_2.hpp")
   )
 Description: Provides an interface to the 'Apache DataSketches'
     (<https://datasketches.apache.org/>) library of streaming algorithms for
