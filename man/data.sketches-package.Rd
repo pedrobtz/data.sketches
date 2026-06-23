@@ -22,10 +22,8 @@ Useful links:
 
 Other contributors:
 \itemize{
-  \item The Apache Software Foundation (Author and copyright holder of bundled Apache DataSketches C++ code) [contributor, copyright holder]
-  \item Yahoo Inc. (Copyright holder of portions of bundled Apache DataSketches C++ code) [copyright holder]
-  \item Verizon Media (Copyright holder of portions of bundled Apache DataSketches C++ code) [copyright holder]
-  \item Stephan Brumme (Author and copyright holder of bundled xxhash64.h code) [contributor, copyright holder]
+  \item The Apache Software Foundation (Author of bundled Apache DataSketches C++ code) [contributor]
+  \item Stephan Brumme (Author of bundled xxhash64.h code) [contributor]
   \item Austin Appleby (Author of bundled public-domain MurmurHash3 code) [contributor]
   \item Sean Eron Anderson (Author of bundled public-domain bit-hack code used in ceiling_power_of_2.hpp) [contributor]
 }

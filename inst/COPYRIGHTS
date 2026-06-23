@@ -31,3 +31,35 @@ src/datasketches/NOTICE. The Apache License, Version 2.0 and the package's own
 MIT license are separate and apply to their respective files; the
 MIT license covers only the data.sketches R and C++ bridge code authored for
 this package, not the vendored Apache DataSketches sources.
+
+Bundled files with separate authorship notices
+==============================================
+
+src/datasketches/common/include/xxhash64.h
+------------------------------------------
+
+This file is bundled as part of Apache DataSketches C++.
+
+  Copyright (c) 2016 Stephan Brumme. All rights reserved.
+
+The upstream Apache DataSketches license file records the original source as
+https://github.com/stbrumme/xxhash/blob/master/xxhash64.h and states that this
+component is licensed under the MIT license. The header notes that the
+implementation is based on Yann Collet's XXHash descriptions.
+
+src/datasketches/common/include/MurmurHash3.h
+---------------------------------------------
+
+This file is bundled as part of Apache DataSketches C++ and is minimally
+modified from Austin Appleby's MurmurHash3 code.
+
+The header states that MurmurHash3 was written by Austin Appleby and placed in
+the public domain, and that the author disclaims copyright to this source code.
+
+src/datasketches/common/include/ceiling_power_of_2.hpp
+-----------------------------------------------------
+
+This file is bundled as part of Apache DataSketches C++. It includes code taken
+from Sean Eron Anderson's Bit Twiddling Hacks page,
+https://graphics.stanford.edu/~seander/bithacks.html, which the upstream Apache
+DataSketches license file records as public domain.

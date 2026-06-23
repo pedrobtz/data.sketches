@@ -4,14 +4,10 @@ Version: 0.1.0
 Authors@R: c(
     person("Pedro", "Baltazar", email = "pedrobtz@gmail.com",
            role = c("aut", "cre", "cph")),
-    person("The Apache Software Foundation", role = c("ctb", "cph"),
-           comment = "Author and copyright holder of bundled Apache DataSketches C++ code"),
-    person("Yahoo Inc.", role = "cph",
-           comment = "Copyright holder of portions of bundled Apache DataSketches C++ code"),
-    person("Verizon Media", role = "cph",
-           comment = "Copyright holder of portions of bundled Apache DataSketches C++ code"),
-    person("Stephan", "Brumme", role = c("ctb", "cph"),
-           comment = "Author and copyright holder of bundled xxhash64.h code"),
+    person("The Apache Software Foundation", role = "ctb",
+           comment = "Author of bundled Apache DataSketches C++ code"),
+    person("Stephan", "Brumme", role = "ctb",
+           comment = "Author of bundled xxhash64.h code"),
     person("Austin", "Appleby", role = "ctb",
            comment = "Author of bundled public-domain MurmurHash3 code"),
     person(c("Sean", "Eron"), "Anderson", role = "ctb",
@@ -32,6 +28,7 @@ Description: Provides an interface to the 'Apache DataSketches'
     serialization for interoperability with other 'Apache DataSketches'
     implementations.
 License: MIT + file LICENSE
+Copyright: file inst/COPYRIGHTS
 URL: https://github.com/pedrobtz/data.sketches,
     https://pedrobtz.github.io/data.sketches/
 BugReports: https://github.com/pedrobtz/data.sketches/issues
