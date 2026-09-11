@@ -6,8 +6,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "kll_sketch.hpp"
 
 namespace {
@@ -34,7 +32,11 @@ bool kll_floats_is_valid_xptr(cpp11::sexp sketch) {
 
 kll_floats_sketch& kll_floats_from_xptr(cpp11::sexp sketch) {
   if (!kll_floats_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid KLL floats sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid KLL floats sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   kll_floats_ptr ptr(sketch);
@@ -89,8 +91,8 @@ void kll_floats_update_cpp(cpp11::sexp sketch, cpp11::doubles values) {
   for (R_xlen_t i = 0; i < n; ++i) {
     // Let the user abort a multi-million element update; checking every element
     // would dominate the loop, so probe on a 64k boundary.
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(static_cast<float>(p[i]));
   }

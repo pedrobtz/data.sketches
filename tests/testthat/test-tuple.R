@@ -462,3 +462,41 @@ test_that("set operations work on compact (deserialized) sketches", {
   u <- array_of_doubles_union(a, b)
   expect_true(u$lower_bound(3) <= 1500 && u$upper_bound(3) >= 1500)
 })
+
+# lg_k retention across serialization -----------------------------------------
+# See the matching Theta tests: a compact payload carries no builder `lg_k`,
+# so the hint is recovered from the retained-entry count.
+
+test_that("a round-tripped sketch keeps its width for later unions", {
+  wide <- array_of_doubles(as.character(1:200000), lg_k = 14)
+  restored <- array_of_doubles(bytes = wide$serialize())
+
+  expect_gt(aod_lg_k_hint(restored), 12L)
+  expect_equal(aod_lg_k_hint(restored), wide$lg_k())
+})
+
+test_that("union of round-tripped sketches matches union of live sketches", {
+  a <- array_of_doubles(as.character(1:200000), lg_k = 14)
+  b <- array_of_doubles(as.character(200001:400000), lg_k = 14)
+
+  live <- array_of_doubles_union(a, b)
+  round_tripped <- array_of_doubles_union(
+    array_of_doubles(bytes = a$serialize()),
+    array_of_doubles(bytes = b$serialize())
+  )
+
+  expect_equal(round_tripped$num_retained(), live$num_retained())
+  expect_equal(round_tripped$estimate(), live$estimate())
+})
+
+test_that("$merge() accepts an explicit lg_k", {
+  a <- array_of_doubles(as.character(1:100000), lg_k = 16)
+  b <- array_of_doubles(as.character(100001:200000), lg_k = 16)
+  a$merge(b, lg_k = 14)
+  expect_lte(a$num_retained(), 2^14)
+
+  expect_error(
+    array_of_doubles(1:10)$merge(array_of_doubles(11:20), lg_k = 4),
+    class = "datasketches_invalid_lg_k"
+  )
+})

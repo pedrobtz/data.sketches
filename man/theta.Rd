@@ -28,8 +28,10 @@ A \code{theta_sketch} object. Key methods:
 \describe{
 \item{\verb{$update(x)}}{Add numeric or character values (mutates, returns
 the sketch). Errors if the sketch is compact.}
-\item{\verb{$merge(other)}}{Absorb another sketch with the same \code{seed},
-becoming compact (mutates, returns the sketch).}
+\item{\verb{$merge(other, lg_k = NULL)}}{Absorb another sketch with the same
+\code{seed}, becoming compact (mutates, returns the sketch). \code{lg_k} sizes
+the internal union, defaulting to the larger of the two sketches'
+widths.}
 \item{\verb{$estimate()}}{Approximate number of distinct values seen.}
 \item{\verb{$lower_bound(num_std_dev = 1)} / \verb{$upper_bound(num_std_dev = 1)}}{
 Approximate confidence bounds on \code{estimate()}, at 1, 2, or 3 standard
@@ -57,6 +59,9 @@ character vector.
 \item Pass \code{bytes} to reconstruct a sketch from a native serialized payload (as
 produced by \code{sketch$serialize()}). The result is always a \emph{compact}
 sketch (see below); \code{lg_k} must not be supplied alongside \code{bytes}.
+A compact payload does not carry the builder \code{lg_k}, so it is recovered
+from the retained-entry count when sizing a later \verb{$merge()} or
+\code{\link[=theta_union]{theta_union()}}; pass \code{lg_k} explicitly to override.
 Unlike \code{lg_k}, the hash \code{seed} is \emph{not} stored in the payload and must be
 supplied if the original sketch did not use the default.
 \item Pass neither for an empty (mutable) sketch with the given \code{lg_k} and

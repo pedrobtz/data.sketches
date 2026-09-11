@@ -7,8 +7,6 @@
 #include <cpp11.hpp>
 #include <cpp11/matrix.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "array_of_doubles_sketch.hpp"
 #include "native_utils.h"
 
@@ -84,7 +82,11 @@ bool aod_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 aod_holder& aod_holder_from_xptr(cpp11::sexp sketch) {
   if (!aod_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid Array of Doubles sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid Array of Doubles sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   aod_ptr ptr(sketch);
@@ -144,8 +146,8 @@ void aod_update_doubles_cpp(
   const R_xlen_t n = keys.size();
   std::vector<double> value(holder.num_values);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     for (uint8_t j = 0; j < holder.num_values; ++j) {
       value[j] = values(i, j);
@@ -169,8 +171,8 @@ void aod_update_strings_cpp(
   const R_xlen_t n = keys.size();
   std::vector<double> value(holder.num_values);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     for (uint8_t j = 0; j < holder.num_values; ++j) {
       value[j] = values(i, j);

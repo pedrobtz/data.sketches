@@ -46,7 +46,7 @@ cpc_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- cpc_deserialize_cpp(bytes, seed)
+        private$ptr <- deserialize_native(cpc_deserialize_cpp(bytes, seed))
       } else {
         lg_k <- if (is.null(lg_k)) {
           11L

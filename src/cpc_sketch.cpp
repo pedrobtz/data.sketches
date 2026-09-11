@@ -5,8 +5,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "cpc_sketch.hpp"
 #include "cpc_union.hpp"
 #include "native_utils.h"
@@ -36,7 +34,11 @@ bool cpc_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 cpc_sketch_t& cpc_sketch_from_xptr(cpp11::sexp sketch) {
   if (!cpc_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid CPC sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid CPC sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   cpc_sketch_ptr ptr(sketch);
@@ -71,8 +73,8 @@ void cpc_update_doubles_cpp(cpp11::sexp sketch, cpp11::doubles values) {
   const double* p = REAL(values.data());
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(p[i]);
   }
@@ -83,8 +85,8 @@ void cpc_update_strings_cpp(cpp11::sexp sketch, cpp11::strings values) {
   auto& sk = cpc_sketch_from_xptr(sketch);
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(static_cast<std::string>(values[i]));
   }

@@ -2,11 +2,26 @@
 # before any value crosses the cpp11 bridge, so bad user input is reported by R
 # with a stable classed condition instead of flattening through the C++ glue.
 # See `_dev/WORKING-ON.md` (Validation Contract).
-# All conditions inherit `datasketches_error`; none of these are exported.
+# Every condition raised here inherits `datasketches_error`; none of these are
+# exported. Errors that originate in C++ (a corrupt `bytes` payload, a query on
+# an empty sketch, a sketch whose native handle did not survive `readRDS()`)
+# are translated onto the same class hierarchy by `abort_native()` and the
+# helpers below, so a single `tryCatch(datasketches_error = )` catches them all.
 
 # Shared raiser: keeps every validator's condition shape identical.
 abort_invalid <- function(message, class, call = rlang::caller_env()) {
   rlang::abort(message, class = c(class, "datasketches_error"), call = call)
+}
+
+# Same shape as `abort_invalid()`, but chains the native condition it replaces
+# so the upstream C++ text stays visible under `rlang::last_error()`.
+abort_native <- function(message, class, parent, call = rlang::caller_env()) {
+  rlang::abort(
+    message,
+    class = c(class, "datasketches_error"),
+    parent = parent,
+    call = call
+  )
 }
 
 .datasketches_max_safe_uint64 <- 2^53
@@ -1039,4 +1054,109 @@ is_tdigest_double <- function(x) {
 
   ptr <- tryCatch(td_ptr(x), error = \(.x) NULL)
   !is.null(ptr) && td_is_valid_cpp(ptr)
+}
+
+# A compact Theta / Array of Doubles sketch does not carry its builder `lg_k`
+# in the serialized payload, so a sketch restored from `bytes` has no
+# configured width to size a later `$merge()` or union with. Falling back to
+# the default width silently costs an order of magnitude of accuracy when the
+# original sketch was wider, so recover a hint from the retained-entry count
+# instead. A sketch in estimation mode retains at least `2^lg_k` entries and
+# fewer than `2^(lg_k + 1)` — the table grows past the nominal width and is
+# rebuilt back down, so the count oscillates inside that octave as the stream
+# advances — which makes the floor of its log2 recover `lg_k` exactly,
+# wherever in the resize cycle the sketch happened to be serialized. Sketches
+# holding fewer entries than the default width fall back to it: a narrow union
+# only loses accuracy against a wide counterpart, and that side contributes
+# its own hint to the `max()`.
+lg_k_hint_from_retained <- function(
+  num_retained,
+  default = 12L,
+  max_lg_k = 26L
+) {
+  if (
+    !is.numeric(num_retained) ||
+      length(num_retained) != 1L ||
+      is.na(num_retained) ||
+      num_retained < 1
+  ) {
+    return(default)
+  }
+  max(default, min(max_lg_k, as.integer(floor(log2(num_retained)))))
+}
+
+# Reconstruct a sketch from a serialized payload, translating the native
+# parser's `simpleError` into a classed condition. Corrupt or truncated
+# `bytes` is a predictable, user-facing failure, so it should be catchable
+# alongside the Tier-1 validation errors rather than only by message.
+deserialize_native <- function(expr, call = rlang::caller_env()) {
+  rlang::try_fetch(
+    expr,
+    error = function(cnd) {
+      abort_native(
+        "`bytes` is not a valid serialized sketch of this type.",
+        "datasketches_invalid_bytes",
+        parent = cnd,
+        call = call
+      )
+    }
+  )
+}
+
+# Guard a query that the native layer rejects on an empty sketch (quantile,
+# rank, cdf, pmf, min, max). Upstream raises a bare `std::runtime_error`;
+# catching it here keeps the condition class stable and names the sketch.
+check_not_empty <- function(x, what, call = rlang::caller_env()) {
+  if (x$is_empty()) {
+    abort_invalid(
+      sprintf(
+        "`%s()` is undefined for an empty sketch; update it with data first.",
+        what
+      ),
+      "datasketches_empty_sketch",
+      call = call
+    )
+  }
+  invisible(x)
+}
+
+# Liveness predicate per sketch class, for the S3 display layer below. An
+# external pointer does not survive `saveRDS()`/`save()`, so a restored object
+# still carries its class and R6 shape but has a dead native handle.
+.datasketches_alive <- list(
+  kll_doubles_sketch = is_kll_doubles,
+  kll_floats_sketch = is_kll_floats,
+  req_sketch = is_req,
+  tdigest_double_sketch = is_tdigest_double,
+  hll_sketch = is_hll,
+  cpc_sketch = is_cpc,
+  theta_sketch = is_theta,
+  frequent_items_sketch = is_frequent_items,
+  count_min_sketch = is_count_min,
+  array_of_doubles_sketch = is_array_of_doubles,
+  varopt_sketch = is_varopt,
+  ebpps_sketch = is_ebpps,
+  bloom_filter = is_bloom_filter
+)
+
+# Raise a classed, actionable error when a sketch's native handle is gone.
+# Called from `format()`/`print()`/`summary()`/`as.character()`, which is
+# where a sketch restored from an `.rds` is almost always touched first.
+check_alive <- function(x, call = rlang::caller_env()) {
+  predicate <- .datasketches_alive[[class(x)[[1L]]]]
+  if (!is.null(predicate) && !predicate(x)) {
+    abort_invalid(
+      sprintf(
+        paste0(
+          "This <%s> has no live native handle. Sketches cannot be persisted ",
+          "with `saveRDS()` or `save()`; use `$serialize()` and rebuild with ",
+          "`bytes = ` instead."
+        ),
+        class(x)[[1L]]
+      ),
+      "datasketches_dead_pointer",
+      call = call
+    )
+  }
+  invisible(x)
 }

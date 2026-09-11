@@ -60,7 +60,7 @@ bloom_filter_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- bf_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(bf_deserialize_cpp(bytes))
       } else {
         has_accuracy <- !is.null(max_items) || !is.null(fpp)
         has_size <- !is.null(num_bits) || !is.null(num_hashes)

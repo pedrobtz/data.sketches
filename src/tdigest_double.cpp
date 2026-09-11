@@ -5,8 +5,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "tdigest.hpp"
 
 namespace {
@@ -33,7 +31,11 @@ bool tdigest_double_is_valid_xptr(cpp11::sexp sketch) {
 
 tdigest_double_sketch& tdigest_double_from_xptr(cpp11::sexp sketch) {
   if (!tdigest_double_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid t-Digest double sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid t-Digest double sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   tdigest_double_ptr ptr(sketch);
@@ -81,8 +83,8 @@ void td_update_cpp(cpp11::sexp sketch, cpp11::doubles values) {
   for (R_xlen_t i = 0; i < n; ++i) {
     // Let the user abort a multi-million element update; checking every element
     // would dominate the loop, so probe on a 64k boundary.
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(p[i]);
   }

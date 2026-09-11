@@ -5,8 +5,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "var_opt_sketch.hpp"
 #include "var_opt_union.hpp"
 
@@ -46,7 +44,11 @@ bool vo_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 vo_holder& vo_holder_from_xptr(cpp11::sexp sketch) {
   if (!vo_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid VarOpt sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid VarOpt sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   vo_ptr ptr(sketch);
@@ -97,8 +99,8 @@ void vo_update_doubles_cpp(cpp11::sexp sketch, cpp11::doubles items, cpp11::doub
   const R_xlen_t n = items.size();
   const R_xlen_t m = weights.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     holder.d->update(items[i], weights[i % m]);
   }
@@ -114,8 +116,8 @@ void vo_update_strings_cpp(cpp11::sexp sketch, cpp11::strings items, cpp11::doub
   const R_xlen_t n = items.size();
   const R_xlen_t m = weights.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     holder.s->update(static_cast<std::string>(items[i]), weights[i % m]);
   }

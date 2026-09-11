@@ -6,8 +6,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "count_min.hpp"
 #include "native_utils.h"
 
@@ -35,7 +33,11 @@ bool cm_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 cm_sketch_t& cm_sketch_from_xptr(cpp11::sexp sketch) {
   if (!cm_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid Count-Min sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid Count-Min sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   cm_sketch_ptr ptr(sketch);
@@ -106,8 +108,8 @@ void cm_update_doubles_cpp(cpp11::sexp sketch, cpp11::doubles values, cpp11::dou
   const R_xlen_t n = values.size();
   const R_xlen_t m = weights.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     const double value = values[i];
     sk.update(static_cast<const void*>(&value), sizeof(double), weights[i % m]);
@@ -120,8 +122,8 @@ void cm_update_strings_cpp(cpp11::sexp sketch, cpp11::strings values, cpp11::dou
   const R_xlen_t n = values.size();
   const R_xlen_t m = weights.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(static_cast<std::string>(values[i]), weights[i % m]);
   }
