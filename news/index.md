@@ -2,6 +2,8 @@
 
 ## data.sketches 0.1.0
 
+CRAN release: 2026-07-09
+
 - Initial release. Provides an R interface to the Apache DataSketches
   C++ library:
   - Quantile sketches:
