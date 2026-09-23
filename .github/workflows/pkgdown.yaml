@@ -38,10 +38,16 @@ jobs:
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
+      # gh-pages also carries the coverage badge (badges/coverage.svg), which
+      # coverage.yaml commits there on every push to main, in parallel with
+      # this job. `clean: false` keeps the badge, which pkgdown did not
+      # generate. `force: false` makes a deploy racing the badge commit
+      # rebase onto it; the action's default force-push would overwrite it.
       - name: Deploy to GitHub pages 🚀
         if: github.event_name != 'pull_request'
         uses: JamesIves/github-pages-deploy-action@d92aa235d04922e8f08b40ce78cc5442fcfbfa2f # v4.8.0
         with:
           clean: false
+          force: false
           branch: gh-pages
           folder: docs
