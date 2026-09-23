@@ -1,4 +1,4 @@
-# data.sketches (development version)
+# data.sketches 0.1.1
 
 ## Bug fixes
 
