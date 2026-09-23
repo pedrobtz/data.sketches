@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">data.sketches</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.1.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,20 +33,20 @@
     </div>
 
     <div class="section level2">
-<h2 class="pkg-version" data-toc-text="development version" id="datasketches-development-version">data.sketches (development version)<a class="anchor" aria-label="anchor" href="#datasketches-development-version"></a></h2>
+<h2 class="pkg-version" data-toc-text="0.1.1" id="datasketches-011">data.sketches 0.1.1<a class="anchor" aria-label="anchor" href="#datasketches-011"></a></h2>
 <div class="section level3">
-<h3 id="bug-fixes-development-version">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-development-version"></a></h3>
+<h3 id="bug-fixes-0-1-1">Bug fixes<a class="anchor" aria-label="anchor" href="#bug-fixes-0-1-1"></a></h3>
 <ul><li><p>Interrupting a long <code>$update()</code> or query no longer leaks its input vector. The native loops probed for interrupts with <code>R_CheckUserInterrupt()</code>, which longjmps past C++ destructors and so skipped the release of cpp11’s preserve token on the input; an interrupted 40M-element update pinned ~320 MB in R’s precious list for the rest of the session. All 25 probe sites now use <code>cpp11::check_user_interrupt()</code>, which unwinds through <code>R_UnwindProtect</code>.</p></li>
 <li><p><code><a href="../reference/theta.html">theta()</a></code> and <code><a href="../reference/array_of_doubles.html">array_of_doubles()</a></code> sketches rebuilt from <code>bytes =</code> no longer lose their width. A compact payload does not carry the builder <code>lg_k</code>, and the previous fallback to the default width silently cost about an order of magnitude of accuracy on any later <code>$merge()</code> or union — unioning two round-tripped <code>lg_k = 20</code> sketches retained 4,096 entries instead of 1,048,576. The width is now recovered from the retained-entry count.</p></li>
 <li><p>Native update and query loops no longer pump the R event loop on the first element of every call.</p></li>
 </ul></div>
 <div class="section level3">
-<h3 id="new-features-development-version">New features<a class="anchor" aria-label="anchor" href="#new-features-development-version"></a></h3>
+<h3 id="new-features-0-1-1">New features<a class="anchor" aria-label="anchor" href="#new-features-0-1-1"></a></h3>
 <ul><li>
 <code>$merge()</code> on <code>theta_sketch</code> and <code>array_of_doubles_sketch</code> gains an <code>lg_k</code> argument, matching <code><a href="../reference/theta_set_operations.html">theta_union()</a></code> and <code><a href="../reference/array_of_doubles_set_operations.html">array_of_doubles_union()</a></code>. Previously there was no way to control the width of a merge.</li>
 </ul></div>
 <div class="section level3">
-<h3 id="error-handling-development-version">Error handling<a class="anchor" aria-label="anchor" href="#error-handling-development-version"></a></h3>
+<h3 id="error-handling-0-1-1">Error handling<a class="anchor" aria-label="anchor" href="#error-handling-0-1-1"></a></h3>
 <ul><li><p>Errors originating in the C++ bridge now carry the same classed conditions as the R-level validators, so <code>tryCatch(datasketches_error = )</code> catches every failure the package raises. New classes: <code>datasketches_invalid_bytes</code> (corrupt or truncated <code>bytes =</code> payload), <code>datasketches_empty_sketch</code> (<code>$quantile()</code>, <code>$rank()</code>, <code>$cdf()</code>, <code>$pmf()</code>, <code>$min()</code>, <code>$max()</code> on an empty sketch), and <code>datasketches_dead_pointer</code>.</p></li>
 <li><p>Printing or summarising a sketch restored with <code><a href="https://rdrr.io/r/base/readRDS.html" class="external-link">readRDS()</a></code> or <code><a href="https://rdrr.io/r/base/load.html" class="external-link">load()</a></code> now raises an actionable error pointing at <code>$serialize()</code> / <code>bytes =</code>, rather than reporting that the object is not a valid sketch. External pointers do not survive R’s serialization; sketches must be persisted with <code>$serialize()</code>.</p></li>
 <li><p>A <code>bytes =</code> payload shorter than 8 bytes passed to <code><a href="../reference/hll.html">hll()</a></code> now raises <code>datasketches_invalid_bytes</code> rather than <code>datasketches_invalid_args</code>, so a malformed payload has one class across all sketch families. Both classes inherit <code>datasketches_error</code>.</p></li>
