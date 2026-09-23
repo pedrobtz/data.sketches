@@ -37,7 +37,7 @@ controlled by k."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>KLL sketch for approximate quantiles of a numeric stream</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.0/R/quantiles-kll-doubles.R" class="external-link"><code>R/quantiles-kll-doubles.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/quantiles-kll-doubles.R" class="external-link"><code>R/quantiles-kll-doubles.R</code></a></small>
       <div class="d-none name"><code>kll_doubles.Rd</code></div>
     </div>
 
@@ -119,9 +119,9 @@ there is no <code>na_rm</code> argument.</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">sketch</span> <span class="op">&lt;-</span> <span class="fu">kll_doubles</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">10000</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">quantile</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="fl">0.75</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -0.6500326  0.0243160  0.6949159</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -0.6408269  0.0181267  0.6873645</span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">rank</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1481 0.4914 0.8372</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1503 0.4916 0.8360</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Round-trip through the native byte format.</span></span></span>
 <span class="r-in"><span><span class="va">restored</span> <span class="op">&lt;-</span> <span class="fu">kll_doubles</span><span class="op">(</span>bytes <span class="op">=</span> <span class="va">sketch</span><span class="op">$</span><span class="fu">serialize</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>

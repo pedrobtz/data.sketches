@@ -41,7 +41,7 @@ weight, with a tight bound on the resulting sample size."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EBPPS sketch for proportional-to-size sampling</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.0/R/sampling-reservoir.R" class="external-link"><code>R/sampling-reservoir.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/sampling-reservoir.R" class="external-link"><code>R/sampling-reservoir.R</code></a></small>
       <div class="d-none name"><code>ebpps.Rd</code></div>
     </div>
 
@@ -142,9 +142,9 @@ matching the native implementation.</p>
 <span class="r-in"><span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span> <span class="op">&lt;-</span> <span class="fu">ebpps</span><span class="op">(</span><span class="va">items</span>, <span class="va">weights</span>, k <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">result</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 354 227 833 291 714 199 791 352 447 237 775  30  19 579 866 622 108 754 375</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [20] 742 346 698 123 904 965 612 336 829 367 359 818 478 865  56  46 735 206 896</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [39]  64 249 592  10 809 351  88  68 862 101 600 851</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 754 607   9 525 608 339  15 361 836  73 348 889 355 334  10   8 552 906 764</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [20] 209 368 294 722 132 888 976 927 375 495 437 978 440 890 930 516 783 204 117</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [39]  66  95 903 747 344  40 707 523 155 502  53 403</span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">c</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 50</span>
 <span class="r-in"><span></span></span>

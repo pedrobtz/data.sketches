@@ -43,7 +43,7 @@ across distinct users."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Array of Doubles (Tuple) sketch for estimating sums alongside distinct counts</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.0/R/tuple.R" class="external-link"><code>R/tuple.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/tuple.R" class="external-link"><code>R/tuple.R</code></a></small>
       <div class="d-none name"><code>array_of_doubles.Rd</code></div>
     </div>
 
@@ -118,9 +118,11 @@ reconstruct. The result is always a compact sketch.</p></dd>
 <dd><p>Add keys with associated values
 (mutates, returns the sketch). Errors if the sketch is compact.</p></dd>
 
-<dt><code>$merge(other)</code></dt>
-<dd><p>Absorb another sketch with the same <code>seed</code> and
-<code>num_values</code>, becoming compact (mutates, returns the sketch).</p></dd>
+<dt><code>$merge(other, lg_k = NULL)</code></dt>
+<dd><p>Absorb another sketch with the same
+<code>seed</code> and <code>num_values</code>, becoming compact (mutates, returns the
+sketch). <code>lg_k</code> sizes the internal union, defaulting to the larger of
+the two sketches' widths.</p></dd>
 
 <dt><code>$estimate()</code></dt>
 <dd><p>Approximate number of distinct keys seen.</p></dd>

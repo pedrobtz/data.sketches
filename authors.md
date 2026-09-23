@@ -20,7 +20,7 @@
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/pedrobtz/data.sketches/blob/0.1.0/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/pedrobtz/data.sketches/blob/main/DESCRIPTION)
 
 Baltazar P (2026). *data.sketches: Probabilistic Streaming Data
 Sketches*. R package version 0.1.0,

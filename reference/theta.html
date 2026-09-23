@@ -39,7 +39,7 @@ two sketches into a new result without mutating either input."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Theta sketch for approximate distinct counting and set operations</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.0/R/cardinality-theta.R" class="external-link"><code>R/cardinality-theta.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/cardinality-theta.R" class="external-link"><code>R/cardinality-theta.R</code></a></small>
       <div class="d-none name"><code>theta.Rd</code></div>
     </div>
 
@@ -91,9 +91,11 @@ reconstruct. The result is always a compact sketch.</p></dd>
 <dd><p>Add numeric or character values (mutates, returns
 the sketch). Errors if the sketch is compact.</p></dd>
 
-<dt><code>$merge(other)</code></dt>
-<dd><p>Absorb another sketch with the same <code>seed</code>,
-becoming compact (mutates, returns the sketch).</p></dd>
+<dt><code>$merge(other, lg_k = NULL)</code></dt>
+<dd><p>Absorb another sketch with the same
+<code>seed</code>, becoming compact (mutates, returns the sketch). <code>lg_k</code> sizes
+the internal union, defaulting to the larger of the two sketches'
+widths.</p></dd>
 
 <dt><code>$estimate()</code></dt>
 <dd><p>Approximate number of distinct values seen.</p></dd>
@@ -120,6 +122,9 @@ character vector.</p></li>
 <li><p>Pass <code>bytes</code> to reconstruct a sketch from a native serialized payload (as
 produced by <code>sketch$serialize()</code>). The result is always a <em>compact</em>
 sketch (see below); <code>lg_k</code> must not be supplied alongside <code>bytes</code>.
+A compact payload does not carry the builder <code>lg_k</code>, so it is recovered
+from the retained-entry count when sizing a later <code>$merge()</code> or
+<code><a href="theta_set_operations.html">theta_union()</a></code>; pass <code>lg_k</code> explicitly to override.
 Unlike <code>lg_k</code>, the hash <code>seed</code> is <em>not</em> stored in the payload and must be
 supplied if the original sketch did not use the default.</p></li>
 <li><p>Pass neither for an empty (mutable) sketch with the given <code>lg_k</code> and

@@ -87,9 +87,9 @@ argument.
 ``` r
 sketch <- kll_doubles(rnorm(10000))
 sketch$quantile(c(0.25, 0.5, 0.75))
-#> [1] -0.6500326  0.0243160  0.6949159
+#> [1] -0.6408269  0.0181267  0.6873645
 sketch$rank(c(-1, 0, 1))
-#> [1] 0.1481 0.4914 0.8372
+#> [1] 0.1503 0.4916 0.8360
 
 # Round-trip through the native byte format.
 restored <- kll_doubles(bytes = sketch$serialize())

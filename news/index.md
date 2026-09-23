@@ -1,5 +1,64 @@
 # Changelog
 
+## data.sketches (development version)
+
+### Bug fixes
+
+- Interrupting a long `$update()` or query no longer leaks its input
+  vector. The native loops probed for interrupts with
+  `R_CheckUserInterrupt()`, which longjmps past C++ destructors and so
+  skipped the release of cpp11’s preserve token on the input; an
+  interrupted 40M-element update pinned ~320 MB in R’s precious list for
+  the rest of the session. All 25 probe sites now use
+  `cpp11::check_user_interrupt()`, which unwinds through
+  `R_UnwindProtect`.
+
+- [`theta()`](https://pedrobtz.github.io/data.sketches/reference/theta.md)
+  and
+  [`array_of_doubles()`](https://pedrobtz.github.io/data.sketches/reference/array_of_doubles.md)
+  sketches rebuilt from `bytes =` no longer lose their width. A compact
+  payload does not carry the builder `lg_k`, and the previous fallback
+  to the default width silently cost about an order of magnitude of
+  accuracy on any later `$merge()` or union — unioning two round-tripped
+  `lg_k = 20` sketches retained 4,096 entries instead of 1,048,576. The
+  width is now recovered from the retained-entry count.
+
+- Native update and query loops no longer pump the R event loop on the
+  first element of every call.
+
+### New features
+
+- `$merge()` on `theta_sketch` and `array_of_doubles_sketch` gains an
+  `lg_k` argument, matching
+  [`theta_union()`](https://pedrobtz.github.io/data.sketches/reference/theta_set_operations.md)
+  and
+  [`array_of_doubles_union()`](https://pedrobtz.github.io/data.sketches/reference/array_of_doubles_set_operations.md).
+  Previously there was no way to control the width of a merge.
+
+### Error handling
+
+- Errors originating in the C++ bridge now carry the same classed
+  conditions as the R-level validators, so
+  `tryCatch(datasketches_error = )` catches every failure the package
+  raises. New classes: `datasketches_invalid_bytes` (corrupt or
+  truncated `bytes =` payload), `datasketches_empty_sketch`
+  (`$quantile()`, `$rank()`, `$cdf()`, `$pmf()`, `$min()`, `$max()` on
+  an empty sketch), and `datasketches_dead_pointer`.
+
+- Printing or summarising a sketch restored with
+  [`readRDS()`](https://rdrr.io/r/base/readRDS.html) or
+  [`load()`](https://rdrr.io/r/base/load.html) now raises an actionable
+  error pointing at `$serialize()` / `bytes =`, rather than reporting
+  that the object is not a valid sketch. External pointers do not
+  survive R’s serialization; sketches must be persisted with
+  `$serialize()`.
+
+- A `bytes =` payload shorter than 8 bytes passed to
+  [`hll()`](https://pedrobtz.github.io/data.sketches/reference/hll.md)
+  now raises `datasketches_invalid_bytes` rather than
+  `datasketches_invalid_args`, so a malformed payload has one class
+  across all sketch families. Both classes inherit `datasketches_error`.
+
 ## data.sketches 0.1.0
 
 CRAN release: 2026-07-09

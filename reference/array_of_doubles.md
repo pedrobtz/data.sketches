@@ -75,10 +75,11 @@ An `array_of_doubles_sketch` object. Key methods:
   Add keys with associated values (mutates, returns the sketch). Errors
   if the sketch is compact.
 
-- `$merge(other)`:
+- `$merge(other, lg_k = NULL)`:
 
   Absorb another sketch with the same `seed` and `num_values`, becoming
-  compact (mutates, returns the sketch).
+  compact (mutates, returns the sketch). `lg_k` sizes the internal
+  union, defaulting to the larger of the two sketches' widths.
 
 - `$estimate()`:
 

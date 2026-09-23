@@ -55,10 +55,11 @@ A `theta_sketch` object. Key methods:
   Add numeric or character values (mutates, returns the sketch). Errors
   if the sketch is compact.
 
-- `$merge(other)`:
+- `$merge(other, lg_k = NULL)`:
 
   Absorb another sketch with the same `seed`, becoming compact (mutates,
-  returns the sketch).
+  returns the sketch). `lg_k` sizes the internal union, defaulting to
+  the larger of the two sketches' widths.
 
 - `$estimate()`:
 
@@ -89,8 +90,13 @@ At most one of `x` or `bytes` may be supplied:
 - Pass `bytes` to reconstruct a sketch from a native serialized payload
   (as produced by `sketch$serialize()`). The result is always a
   *compact* sketch (see below); `lg_k` must not be supplied alongside
-  `bytes`. Unlike `lg_k`, the hash `seed` is *not* stored in the payload
-  and must be supplied if the original sketch did not use the default.
+  `bytes`. A compact payload does not carry the builder `lg_k`, so it is
+  recovered from the retained-entry count when sizing a later `$merge()`
+  or
+  [`theta_union()`](https://pedrobtz.github.io/data.sketches/reference/theta_set_operations.md);
+  pass `lg_k` explicitly to override. Unlike `lg_k`, the hash `seed` is
+  *not* stored in the payload and must be supplied if the original
+  sketch did not use the default.
 
 - Pass neither for an empty (mutable) sketch with the given `lg_k` and
   `seed`.
