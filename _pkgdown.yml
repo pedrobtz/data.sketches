@@ -3,6 +3,11 @@ url: https://pedrobtz.github.io/data.sketches/
 template:
   bootstrap: 5
 
+# The root site documents the CRAN release; main builds into /dev/.
+# `auto` picks by version: 0.1.1 builds the root, 0.1.1.9000 builds dev/.
+development:
+  mode: auto
+
 reference:
 - title: Quantile sketches
   desc: >
