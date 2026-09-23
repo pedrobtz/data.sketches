@@ -39,7 +39,7 @@ kll_floats_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- kll_floats_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(kll_floats_deserialize_cpp(bytes))
       } else {
         k <- if (is.null(k)) 200L else check_k(k)
         private$ptr <- kll_floats_create_cpp(k)
@@ -71,6 +71,7 @@ kll_floats_sketch_generator <- R6Class(
     },
 
     quantile = function(probs, inclusive = TRUE) {
+      check_not_empty(self, "quantile")
       probs <- check_probs(probs)
       inclusive <- check_flag(inclusive, "inclusive")
       kll_floats_get_quantiles_cpp(private$ptr, probs, inclusive)
@@ -79,6 +80,7 @@ kll_floats_sketch_generator <- R6Class(
     # `rank` treats input as data values: missing inputs map to NA_real_ in the
     # shape-preserving output rather than querying the sketch.
     rank = function(x, inclusive = TRUE) {
+      check_not_empty(self, "rank")
       x <- check_numeric_stream(x, "x")
       inclusive <- check_flag(inclusive, "inclusive")
       out <- rep(NA_real_, length(x))
@@ -91,12 +93,14 @@ kll_floats_sketch_generator <- R6Class(
 
     # `cdf`/`pmf` are NOT length-preserving: n split points produce n + 1 values.
     cdf = function(split_points, inclusive = TRUE) {
+      check_not_empty(self, "cdf")
       split_points <- check_split_points(split_points)
       inclusive <- check_flag(inclusive, "inclusive")
       kll_floats_get_cdf_cpp(private$ptr, split_points, inclusive)
     },
 
     pmf = function(split_points, inclusive = TRUE) {
+      check_not_empty(self, "pmf")
       split_points <- check_split_points(split_points)
       inclusive <- check_flag(inclusive, "inclusive")
       kll_floats_get_pmf_cpp(private$ptr, split_points, inclusive)
@@ -123,10 +127,12 @@ kll_floats_sketch_generator <- R6Class(
     },
 
     min = function() {
+      check_not_empty(self, "min")
       kll_floats_get_min_item_cpp(private$ptr)
     },
 
     max = function() {
+      check_not_empty(self, "max")
       kll_floats_get_max_item_cpp(private$ptr)
     },
 

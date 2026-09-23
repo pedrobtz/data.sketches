@@ -4,8 +4,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "bloom_filter.hpp"
 #include "native_utils.h"
 
@@ -33,7 +31,11 @@ bool bf_is_valid_xptr(cpp11::sexp filter) {
 
 bf_t& bf_from_xptr(cpp11::sexp filter) {
   if (!bf_is_valid_xptr(filter)) {
-    cpp11::stop("`filter` is not a valid Bloom filter.");
+    cpp11::stop(
+      "`filter` is not a valid Bloom filter. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   bf_ptr ptr(filter);
@@ -83,8 +85,8 @@ void bf_update_doubles_cpp(cpp11::sexp filter, cpp11::doubles items) {
   auto& f = bf_from_xptr(filter);
   const R_xlen_t n = items.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     const double value = items[i];
     f.update(static_cast<const void*>(&value), sizeof(double));
@@ -96,8 +98,8 @@ void bf_update_strings_cpp(cpp11::sexp filter, cpp11::strings items) {
   auto& f = bf_from_xptr(filter);
   const R_xlen_t n = items.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     f.update(static_cast<std::string>(items[i]));
   }
@@ -109,8 +111,8 @@ cpp11::writable::logicals bf_query_doubles_cpp(cpp11::sexp filter, cpp11::double
   const R_xlen_t n = items.size();
   cpp11::writable::logicals out(n);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     const double value = items[i];
     out[i] = f.query(static_cast<const void*>(&value), sizeof(double));
@@ -124,8 +126,8 @@ cpp11::writable::logicals bf_query_strings_cpp(cpp11::sexp filter, cpp11::string
   const R_xlen_t n = items.size();
   cpp11::writable::logicals out(n);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     out[i] = f.query(static_cast<std::string>(items[i]));
   }
@@ -139,8 +141,8 @@ cpp11::writable::logicals bf_query_and_update_doubles_cpp(cpp11::sexp filter, cp
   const R_xlen_t n = items.size();
   cpp11::writable::logicals out(n);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     const double value = items[i];
     out[i] = f.query_and_update(static_cast<const void*>(&value), sizeof(double));
@@ -154,8 +156,8 @@ cpp11::writable::logicals bf_query_and_update_strings_cpp(cpp11::sexp filter, cp
   const R_xlen_t n = items.size();
   cpp11::writable::logicals out(n);
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     out[i] = f.query_and_update(static_cast<std::string>(items[i]));
   }

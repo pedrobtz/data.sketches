@@ -35,7 +35,7 @@ tdigest_double_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- td_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(td_deserialize_cpp(bytes))
       } else {
         k <- if (is.null(k)) 200L else check_tdigest_k(k)
         private$ptr <- td_create_cpp(k)
@@ -68,6 +68,7 @@ tdigest_double_sketch_generator <- R6Class(
 
     # Unlike KLL/REQ, t-Digest has no `inclusive` argument for quantile/rank.
     quantile = function(probs) {
+      check_not_empty(self, "quantile")
       probs <- check_probs(probs)
       td_get_quantiles_cpp(private$ptr, probs)
     },
@@ -75,6 +76,7 @@ tdigest_double_sketch_generator <- R6Class(
     # `rank` treats input as data values: missing inputs map to NA_real_ in the
     # shape-preserving output rather than querying the sketch.
     rank = function(x) {
+      check_not_empty(self, "rank")
       x <- check_numeric_stream(x, "x")
       out <- rep(NA_real_, length(x))
       ok <- !is.na(x)
@@ -86,11 +88,13 @@ tdigest_double_sketch_generator <- R6Class(
 
     # `cdf`/`pmf` are NOT length-preserving: n split points produce n + 1 values.
     cdf = function(split_points) {
+      check_not_empty(self, "cdf")
       split_points <- check_split_points(split_points)
       td_get_cdf_cpp(private$ptr, split_points)
     },
 
     pmf = function(split_points) {
+      check_not_empty(self, "pmf")
       split_points <- check_split_points(split_points)
       td_get_pmf_cpp(private$ptr, split_points)
     },
@@ -108,10 +112,12 @@ tdigest_double_sketch_generator <- R6Class(
     },
 
     min = function() {
+      check_not_empty(self, "min")
       td_get_min_value_cpp(private$ptr)
     },
 
     max = function() {
+      check_not_empty(self, "max")
       td_get_max_value_cpp(private$ptr)
     },
 

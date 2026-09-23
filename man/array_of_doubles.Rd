@@ -45,8 +45,10 @@ An \code{array_of_doubles_sketch} object. Key methods:
 \describe{
 \item{\verb{$update(x, values = NULL)}}{Add keys with associated values
 (mutates, returns the sketch). Errors if the sketch is compact.}
-\item{\verb{$merge(other)}}{Absorb another sketch with the same \code{seed} and
-\code{num_values}, becoming compact (mutates, returns the sketch).}
+\item{\verb{$merge(other, lg_k = NULL)}}{Absorb another sketch with the same
+\code{seed} and \code{num_values}, becoming compact (mutates, returns the
+sketch). \code{lg_k} sizes the internal union, defaulting to the larger of
+the two sketches' widths.}
 \item{\verb{$estimate()}}{Approximate number of distinct keys seen.}
 \item{\verb{$lower_bound(num_std_dev = 1)} / \verb{$upper_bound(num_std_dev = 1)}}{
 Approximate confidence bounds on \code{estimate()}, at 1, 2, or 3 standard

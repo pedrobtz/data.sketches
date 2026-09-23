@@ -57,7 +57,7 @@ varopt_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- vo_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(vo_deserialize_cpp(bytes))
       } else {
         type <- if (is.null(type)) {
           if (is.character(x)) "character" else "double"

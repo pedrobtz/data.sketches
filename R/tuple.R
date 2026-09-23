@@ -108,8 +108,13 @@ array_of_doubles_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- aod_deserialize_cpp(bytes, seed)
-        private$lg_k_hint <- 12L
+        private$ptr <- deserialize_native(aod_deserialize_cpp(bytes, seed))
+        # The payload carries no builder `lg_k`; recover a hint from the
+        # retained-entry count so a round-tripped sketch still unions at its
+        # original width. See `lg_k_hint_from_retained()`.
+        private$lg_k_hint <- lg_k_hint_from_retained(
+          aod_get_num_retained_cpp(private$ptr)
+        )
       } else {
         lg_k <- if (is.null(lg_k)) {
           12L
@@ -179,7 +184,7 @@ array_of_doubles_sketch_generator <- R6Class(
     # sketches must share the same `seed` and `num_values`; self-merge is
     # rejected for consistency with other families. After merge(), the
     # receiver is compact and can no longer be updated.
-    merge = function(other) {
+    merge = function(other, lg_k = NULL) {
       check_array_of_doubles(other, "other")
       if (identical(private$ptr, aod_ptr(other))) {
         abort_invalid(
@@ -199,7 +204,11 @@ array_of_doubles_sketch_generator <- R6Class(
           "datasketches_incompatible_sketch"
         )
       }
-      lg_max_k <- max(private$lg_k_hint, aod_lg_k_hint(other))
+      lg_max_k <- if (is.null(lg_k)) {
+        max(private$lg_k_hint, aod_lg_k_hint(other))
+      } else {
+        check_lg_k(lg_k, min = 5L, max = 26L)
+      }
       aod_merge_cpp(
         private$ptr,
         aod_ptr(other),
@@ -458,8 +467,10 @@ array_of_doubles_sketch_generator <- R6Class(
 #'   \describe{
 #'     \item{`$update(x, values = NULL)`}{Add keys with associated values
 #'       (mutates, returns the sketch). Errors if the sketch is compact.}
-#'     \item{`$merge(other)`}{Absorb another sketch with the same `seed` and
-#'       `num_values`, becoming compact (mutates, returns the sketch).}
+#'     \item{`$merge(other, lg_k = NULL)`}{Absorb another sketch with the same
+#'       `seed` and `num_values`, becoming compact (mutates, returns the
+#'       sketch). `lg_k` sizes the internal union, defaulting to the larger of
+#'       the two sketches' widths.}
 #'     \item{`$estimate()`}{Approximate number of distinct keys seen.}
 #'     \item{`$lower_bound(num_std_dev = 1)` / `$upper_bound(num_std_dev = 1)`}{
 #'       Approximate confidence bounds on `estimate()`, at 1, 2, or 3 standard

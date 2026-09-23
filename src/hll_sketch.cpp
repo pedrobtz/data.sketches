@@ -5,8 +5,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "hll.hpp"
 
 namespace {
@@ -34,7 +32,11 @@ bool hll_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 hll_sketch_t& hll_sketch_from_xptr(cpp11::sexp sketch) {
   if (!hll_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid HLL sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid HLL sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   hll_sketch_ptr ptr(sketch);
@@ -75,8 +77,8 @@ void hll_update_doubles_cpp(cpp11::sexp sketch, cpp11::doubles values) {
   const double* p = REAL(values.data());
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(p[i]);
   }
@@ -87,8 +89,8 @@ void hll_update_strings_cpp(cpp11::sexp sketch, cpp11::strings values) {
   auto& sk = hll_sketch_from_xptr(sketch);
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     sk.update(static_cast<std::string>(values[i]));
   }

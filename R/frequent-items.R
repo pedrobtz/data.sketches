@@ -45,7 +45,7 @@ frequent_items_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- fi_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(fi_deserialize_cpp(bytes))
       } else {
         lg_max_map_size <- if (is.null(lg_max_map_size)) {
           8L

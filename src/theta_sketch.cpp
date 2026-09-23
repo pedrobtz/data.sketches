@@ -6,8 +6,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "theta_sketch.hpp"
 #include "theta_union.hpp"
 #include "theta_intersection.hpp"
@@ -57,7 +55,11 @@ bool theta_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 theta_holder& theta_holder_from_xptr(cpp11::sexp sketch) {
   if (!theta_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid Theta sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid Theta sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   theta_ptr ptr(sketch);
@@ -108,8 +110,8 @@ void theta_update_doubles_cpp(cpp11::sexp sketch, cpp11::doubles values) {
   const double* p = REAL(values.data());
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     upd->update(p[i]);
   }
@@ -124,8 +126,8 @@ void theta_update_strings_cpp(cpp11::sexp sketch, cpp11::strings values) {
   }
   const R_xlen_t n = values.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     upd->update(static_cast<std::string>(values[i]));
   }

@@ -51,7 +51,7 @@ ebpps_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- eb_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(eb_deserialize_cpp(bytes))
       } else {
         type <- if (is.null(type)) {
           if (is.character(x)) "character" else "double"

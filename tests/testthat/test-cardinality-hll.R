@@ -179,11 +179,11 @@ test_that("constructor exclusivity is enforced", {
   )
   expect_error(
     hll(bytes = raw(0)),
-    class = "datasketches_invalid_args"
+    class = "datasketches_invalid_bytes"
   )
   expect_error(
     hll(bytes = raw(7)),
-    class = "datasketches_invalid_args"
+    class = "datasketches_invalid_bytes"
   )
   malformed <- bytes
   malformed[[1]] <- as.raw(0xff)

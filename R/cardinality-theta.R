@@ -79,8 +79,13 @@ theta_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- theta_deserialize_cpp(bytes, seed)
-        private$lg_k_hint <- 12L
+        private$ptr <- deserialize_native(theta_deserialize_cpp(bytes, seed))
+        # The payload carries no builder `lg_k`; recover a hint from the
+        # retained-entry count so a round-tripped sketch still unions at its
+        # original width. See `lg_k_hint_from_retained()`.
+        private$lg_k_hint <- lg_k_hint_from_retained(
+          theta_get_num_retained_cpp(private$ptr)
+        )
       } else {
         lg_k <- if (is.null(lg_k)) {
           12L
@@ -125,7 +130,7 @@ theta_sketch_generator <- R6Class(
     # sketches must share the same `seed`; self-merge is rejected for
     # consistency with other families. After merge(), the receiver is
     # compact and can no longer be updated.
-    merge = function(other) {
+    merge = function(other, lg_k = NULL) {
       check_theta(other, "other")
       if (identical(private$ptr, theta_ptr(other))) {
         abort_invalid(
@@ -139,7 +144,11 @@ theta_sketch_generator <- R6Class(
           "datasketches_seed_mismatch"
         )
       }
-      lg_max_k <- max(private$lg_k_hint, theta_lg_k_hint(other))
+      lg_max_k <- if (is.null(lg_k)) {
+        max(private$lg_k_hint, theta_lg_k_hint(other))
+      } else {
+        check_lg_k(lg_k, min = 5L, max = 26L)
+      }
       theta_merge_cpp(
         private$ptr,
         theta_ptr(other),
@@ -313,6 +322,9 @@ theta_sketch_generator <- R6Class(
 #' * Pass `bytes` to reconstruct a sketch from a native serialized payload (as
 #'   produced by `sketch$serialize()`). The result is always a *compact*
 #'   sketch (see below); `lg_k` must not be supplied alongside `bytes`.
+#'   A compact payload does not carry the builder `lg_k`, so it is recovered
+#'   from the retained-entry count when sizing a later `$merge()` or
+#'   [theta_union()]; pass `lg_k` explicitly to override.
 #'   Unlike `lg_k`, the hash `seed` is *not* stored in the payload and must be
 #'   supplied if the original sketch did not use the default.
 #' * Pass neither for an empty (mutable) sketch with the given `lg_k` and
@@ -351,8 +363,10 @@ theta_sketch_generator <- R6Class(
 #'   \describe{
 #'     \item{`$update(x)`}{Add numeric or character values (mutates, returns
 #'       the sketch). Errors if the sketch is compact.}
-#'     \item{`$merge(other)`}{Absorb another sketch with the same `seed`,
-#'       becoming compact (mutates, returns the sketch).}
+#'     \item{`$merge(other, lg_k = NULL)`}{Absorb another sketch with the same
+#'       `seed`, becoming compact (mutates, returns the sketch). `lg_k` sizes
+#'       the internal union, defaulting to the larger of the two sketches'
+#'       widths.}
 #'     \item{`$estimate()`}{Approximate number of distinct values seen.}
 #'     \item{`$lower_bound(num_std_dev = 1)` / `$upper_bound(num_std_dev = 1)`}{
 #'       Approximate confidence bounds on `estimate()`, at 1, 2, or 3 standard

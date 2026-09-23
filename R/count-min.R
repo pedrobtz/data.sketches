@@ -56,7 +56,7 @@ count_min_sketch_generator <- R6Class(
             "datasketches_invalid_args"
           )
         }
-        private$ptr <- cm_deserialize_cpp(bytes, seed)
+        private$ptr <- deserialize_native(cm_deserialize_cpp(bytes, seed))
       } else {
         num_hashes <- if (is.null(num_hashes)) {
           3L

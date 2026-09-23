@@ -5,8 +5,6 @@
 
 #include <cpp11.hpp>
 
-#include <R_ext/Utils.h> // R_CheckUserInterrupt
-
 #include "frequent_items_sketch.hpp"
 #include "native_utils.h"
 
@@ -34,7 +32,11 @@ bool fi_sketch_is_valid_xptr(cpp11::sexp sketch) {
 
 fi_sketch_t& fi_sketch_from_xptr(cpp11::sexp sketch) {
   if (!fi_sketch_is_valid_xptr(sketch)) {
-    cpp11::stop("`sketch` is not a valid Frequent Items sketch.");
+    cpp11::stop(
+      "`sketch` is not a valid Frequent Items sketch. If it was restored with "
+      "`readRDS()` or `load()`, the native handle did not survive: use "
+      "`$serialize()` and `bytes = ` to persist a sketch instead."
+    );
   }
 
   fi_sketch_ptr ptr(sketch);
@@ -71,8 +73,8 @@ void fi_update_cpp(cpp11::sexp sketch, cpp11::strings items, cpp11::doubles weig
   const R_xlen_t n = items.size();
   const R_xlen_t m = weights.size();
   for (R_xlen_t i = 0; i < n; ++i) {
-    if ((i & 0xFFFF) == 0) {
-      R_CheckUserInterrupt();
+    if (i > 0 && (i & 0xFFFF) == 0) {
+      cpp11::check_user_interrupt();
     }
     const uint64_t weight =
       data_sketches_native::checked_uint64_from_double(weights[i % m], "weight");

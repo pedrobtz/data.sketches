@@ -49,10 +49,10 @@ hll_sketch_generator <- R6Class(
         if (length(bytes) < 8L) {
           abort_invalid(
             "`bytes` must be at least 8 bytes to be a valid HLL sketch payload.",
-            "datasketches_invalid_args"
+            "datasketches_invalid_bytes"
           )
         }
-        private$ptr <- hll_deserialize_cpp(bytes)
+        private$ptr <- deserialize_native(hll_deserialize_cpp(bytes))
       } else {
         lg_k <- if (is.null(lg_k)) 12L else check_lg_k(lg_k)
         type_int <- if (is.null(type)) 0L else check_hll_type(type)
