@@ -35,7 +35,8 @@ The package implements, grouped by family:
 
 - `frequent_items()` – frequent items (heavy hitters) in a character
   stream.
-- `count_min()` – point estimates of item frequency.
+- `count_min()` – point estimates of item frequency, sized with
+  `count_min_suggest_num_hashes()` and `count_min_suggest_num_buckets()`.
 
 **Tuple sketches**, a Theta-extension that pairs per-key value arrays
 with approximate distinct counting:
@@ -46,26 +47,29 @@ with approximate distinct counting:
 
 **Sampling sketches** for weighted sampling from a stream:
 
-- `varopt()` – VarOpt, for minimum-variance subset-sum estimation.
+- `varopt()` – VarOpt, for minimum-variance subset-sum estimation, with
+  `varopt_union()` to combine sketches.
 - `ebpps()` – EBPPS (Exact and Bounded Probabilistic
   Proportional-to-Size), a modern alternative to reservoir sampling.
 
 **Filters** for approximate set membership:
 
-- `bloom_filter()` – Bloom filter.
+- `bloom_filter()` – Bloom filter, sized with
+  `bloom_filter_suggest_num_filter_bits()` and
+  `bloom_filter_suggest_num_hashes()`.
 
 ## Installation
 
-Install the development version from GitHub with pak:
-
-``` r
-pak::pak("pedrobtz/data.sketches")
-```
-
-Or install the released version from CRAN with:
+Install the released version from CRAN with:
 
 ``` r
 install.packages("data.sketches")
+```
+
+Or install the development version from GitHub with pak:
+
+``` r
+pak::pak("pedrobtz/data.sketches")
 ```
 
 ## Example
