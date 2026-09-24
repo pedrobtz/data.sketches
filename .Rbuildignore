@@ -6,7 +6,6 @@
 ^\.claude$
 ^\.docs$
 ^\.agents$
-^README\.Rmd$
 ^_pkgdown\.yml$
 ^docs$
 ^pkgdown$
