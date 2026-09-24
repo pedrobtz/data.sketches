@@ -5,6 +5,7 @@
 
 <!-- badges: start -->
 
+[![PackageVersion](https://www.r-pkg.org/badges/version/data.sketches)](https://www.r-pkg.org/pkg/data.sketches)
 [![R-CMD-check](https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml)
 [![coverage](https://raw.githubusercontent.com/pedrobtz/data.sketches/gh-pages/badges/coverage.svg)](https://github.com/pedrobtz/data.sketches/actions/workflows/coverage.yaml)
 <!-- badges: end -->
