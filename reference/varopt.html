@@ -39,7 +39,7 @@ items matching a predicate, using only the retained sample."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>VarOpt sketch for variance-optimal sampling and subset-sum estimation</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/sampling-varopt.R" class="external-link"><code>R/sampling-varopt.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.1/R/sampling-varopt.R" class="external-link"><code>R/sampling-varopt.R</code></a></small>
       <div class="d-none name"><code>varopt.Rd</code></div>
     </div>
 
@@ -145,65 +145,65 @@ the larger of the two inputs' configured <code>k</code>.</p>
 <span class="r-in"><span><span class="va">sketch</span> <span class="op">&lt;-</span> <span class="fu">varopt</span><span class="op">(</span><span class="va">items</span>, <span class="va">weights</span>, k <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">samples</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span>    item   weight</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 1   229 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 2   153 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 3   856 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 4   334 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 5   650 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 6   974 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 7   972 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 8   533 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 9   454 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 10  672 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 11   62 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 12  554 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 13  257 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 14  923 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 15  881 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 16  903 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 17  712 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 18  677 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 19  352 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 20   76 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 21   68 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 22  607 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 23  428 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 24  278 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 25  874 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 26  995 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 27  356 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 28  623 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 29  462 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 30  419 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 31  653 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 32  210 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 33  973 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 34  837 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 35  481 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 36  638 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 37  393 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 38    2 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 39   31 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 40  365 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 41  723 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 42   91 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 43  445 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 44  104 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 45  901 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 46  682 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 47  794 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 48  718 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 49  280 10.38281</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> 50  369 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 1   945 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 2   948 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 3   818 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 4   442 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 5   934 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 6   526 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 7   591 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 8    67 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 9    50 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 10  287 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 11   97 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 12  774 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 13  858 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 14  977 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 15  771 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 16  637 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 17  184 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 18   78 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 19  107 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 20  847 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 21   18 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 22  618 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 23  203 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 24  464 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 25  474 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 26  571 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 27  849 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 28  351 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 29  472 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 30   40 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 31  963 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 32  790 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 33  488 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 34  427 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 35  494 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 36  513 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 37  108 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 38  170 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 39  992 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 40  758 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 41  688 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 42  848 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 43  584 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 44   41 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 45  917 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 46  804 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 47  538 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 48  990 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 49    1 10.38281</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> 50  330 10.38281</span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">estimate_subset_sum</span><span class="op">(</span>\<span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="va">x</span> <span class="op">&lt;=</span> <span class="fl">500</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $lower_bound</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 184.7918</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 165.5012</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $estimate</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 259.5702</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 238.8046</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $upper_bound</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 334.3485</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 314.6228</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> </span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> $total_weight</span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 519.1403</span>

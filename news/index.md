@@ -2,6 +2,8 @@
 
 ## data.sketches 0.1.1
 
+CRAN release: 2026-09-23
+
 ### Bug fixes
 
 - Interrupting a long `$update()` or query no longer leaks its input
