@@ -77,7 +77,7 @@
 <li>
 <code><a href="reference/frequent_items.html">frequent_items()</a></code> – frequent items (heavy hitters) in a character stream.</li>
 <li>
-<code><a href="reference/count_min.html">count_min()</a></code> – point estimates of item frequency.</li>
+<code><a href="reference/count_min.html">count_min()</a></code> – point estimates of item frequency, sized with <code><a href="reference/count_min_suggest.html">count_min_suggest_num_hashes()</a></code> and <code><a href="reference/count_min_suggest.html">count_min_suggest_num_buckets()</a></code>.</li>
 </ul>
 <p><strong>Tuple sketches</strong>, a Theta-extension that pairs per-key value arrays with approximate distinct counting:</p>
 <ul>
@@ -87,24 +87,24 @@
 <p><strong>Sampling sketches</strong> for weighted sampling from a stream:</p>
 <ul>
 <li>
-<code><a href="reference/varopt.html">varopt()</a></code> – VarOpt, for minimum-variance subset-sum estimation.</li>
+<code><a href="reference/varopt.html">varopt()</a></code> – VarOpt, for minimum-variance subset-sum estimation, with <code><a href="reference/varopt_union.html">varopt_union()</a></code> to combine sketches.</li>
 <li>
 <code><a href="reference/ebpps.html">ebpps()</a></code> – EBPPS (Exact and Bounded Probabilistic Proportional-to-Size), a modern alternative to reservoir sampling.</li>
 </ul>
 <p><strong>Filters</strong> for approximate set membership:</p>
 <ul>
 <li>
-<code><a href="reference/bloom_filter.html">bloom_filter()</a></code> – Bloom filter.</li>
+<code><a href="reference/bloom_filter.html">bloom_filter()</a></code> – Bloom filter, sized with <code><a href="reference/bloom_filter_suggest.html">bloom_filter_suggest_num_filter_bits()</a></code> and <code><a href="reference/bloom_filter_suggest.html">bloom_filter_suggest_num_hashes()</a></code>.</li>
 </ul>
 <div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
-<p>Install the development version from GitHub with pak:</p>
+<p>Install the released version from CRAN with:</p>
 <div class="sourceCode" id="cb1"><pre class="downlit sourceCode r">
-<code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"pedrobtz/data.sketches"</span><span class="op">)</span></span></code></pre></div>
-<p>Or install the released version from CRAN with:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"data.sketches"</span><span class="op">)</span></span></code></pre></div>
+<p>Or install the development version from GitHub with pak:</p>
+<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="fu">pak</span><span class="fu">::</span><span class="fu"><a href="https://pak.r-lib.org/reference/pak.html" class="external-link">pak</a></span><span class="op">(</span><span class="st">"pedrobtz/data.sketches"</span><span class="op">)</span></span></code></pre></div>
 </div>
 <div class="section level2">
 <h2 id="example">Example<a class="anchor" aria-label="anchor" href="#example"></a>
@@ -167,6 +167,7 @@
 <div class="dev-status">
 <h2 data-toc-skip>Dev status</h2>
 <ul class="list-unstyled">
+<li><a href="https://www.r-pkg.org/pkg/data.sketches" class="external-link"><img src="https://www.r-pkg.org/badges/version/data.sketches" alt="PackageVersion"></a></li>
 <li><a href="https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml" class="external-link"><img src="https://github.com/pedrobtz/data.sketches/actions/workflows/R-CMD-check.yaml/badge.svg" alt="R-CMD-check"></a></li>
 <li><a href="https://github.com/pedrobtz/data.sketches/actions/workflows/coverage.yaml" class="external-link"><img src="https://raw.githubusercontent.com/pedrobtz/data.sketches/gh-pages/badges/coverage.svg" alt="coverage"></a></li>
 </ul>

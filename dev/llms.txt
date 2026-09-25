@@ -39,7 +39,10 @@ The package implements, grouped by family:
 - [`frequent_items()`](https://pedrobtz.github.io/data.sketches/dev/reference/frequent_items.md)
   – frequent items (heavy hitters) in a character stream.
 - [`count_min()`](https://pedrobtz.github.io/data.sketches/dev/reference/count_min.md)
-  – point estimates of item frequency.
+  – point estimates of item frequency, sized with
+  [`count_min_suggest_num_hashes()`](https://pedrobtz.github.io/data.sketches/dev/reference/count_min_suggest.md)
+  and
+  [`count_min_suggest_num_buckets()`](https://pedrobtz.github.io/data.sketches/dev/reference/count_min_suggest.md).
 
 **Tuple sketches**, a Theta-extension that pairs per-key value arrays
 with approximate distinct counting:
@@ -54,7 +57,9 @@ with approximate distinct counting:
 **Sampling sketches** for weighted sampling from a stream:
 
 - [`varopt()`](https://pedrobtz.github.io/data.sketches/dev/reference/varopt.md)
-  – VarOpt, for minimum-variance subset-sum estimation.
+  – VarOpt, for minimum-variance subset-sum estimation, with
+  [`varopt_union()`](https://pedrobtz.github.io/data.sketches/dev/reference/varopt_union.md)
+  to combine sketches.
 - [`ebpps()`](https://pedrobtz.github.io/data.sketches/dev/reference/ebpps.md)
   – EBPPS (Exact and Bounded Probabilistic Proportional-to-Size), a
   modern alternative to reservoir sampling.
@@ -62,22 +67,25 @@ with approximate distinct counting:
 **Filters** for approximate set membership:
 
 - [`bloom_filter()`](https://pedrobtz.github.io/data.sketches/dev/reference/bloom_filter.md)
-  – Bloom filter.
+  – Bloom filter, sized with
+  [`bloom_filter_suggest_num_filter_bits()`](https://pedrobtz.github.io/data.sketches/dev/reference/bloom_filter_suggest.md)
+  and
+  [`bloom_filter_suggest_num_hashes()`](https://pedrobtz.github.io/data.sketches/dev/reference/bloom_filter_suggest.md).
 
 ## Installation
 
-Install the development version from GitHub with pak:
-
-``` r
-
-pak::pak("pedrobtz/data.sketches")
-```
-
-Or install the released version from CRAN with:
+Install the released version from CRAN with:
 
 ``` r
 
 install.packages("data.sketches")
+```
+
+Or install the development version from GitHub with pak:
+
+``` r
+
+pak::pak("pedrobtz/data.sketches")
 ```
 
 ## Example
