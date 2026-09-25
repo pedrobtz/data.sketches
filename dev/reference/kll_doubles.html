@@ -15,7 +15,7 @@ controlled by k."><meta name="robots" content="noindex"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">data.sketches</a>
 
-    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.0.9000</small>
+    <small class="nav-text text-danger me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="In-development version">0.1.1.9000</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -119,9 +119,9 @@ there is no <code>na_rm</code> argument.</p>
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
     <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="va">sketch</span> <span class="op">&lt;-</span> <span class="fu">kll_doubles</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/stats/Normal.html" class="external-link">rnorm</a></span><span class="op">(</span><span class="fl">10000</span><span class="op">)</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">quantile</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.25</span>, <span class="fl">0.5</span>, <span class="fl">0.75</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -0.63689740  0.01358272  0.69195017</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] -0.63989505  0.01313224  0.69574326</span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">rank</span><span class="op">(</span><span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="op">-</span><span class="fl">1</span>, <span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1515 0.4912 0.8368</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [1] 0.1529 0.4964 0.8354</span>
 <span class="r-in"><span></span></span>
 <span class="r-in"><span><span class="co"># Round-trip through the native byte format.</span></span></span>
 <span class="r-in"><span><span class="va">restored</span> <span class="op">&lt;-</span> <span class="fu">kll_doubles</span><span class="op">(</span>bytes <span class="op">=</span> <span class="va">sketch</span><span class="op">$</span><span class="fu">serialize</span><span class="op">(</span><span class="op">)</span><span class="op">)</span></span></span>
