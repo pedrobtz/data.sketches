@@ -37,36 +37,47 @@
 <!-- markdownlint-disable-next-line MD013 -->
 <p>This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.</p>
 <div class="section level2">
+<h2 id="shared-conventions">Shared conventions<a class="anchor" aria-label="anchor" href="#shared-conventions"></a></h2>
+<p>The portfolio’s shared rules are synced into <code>.claude/shared/</code> from <code>pedrobtz/packages:claude/shared/</code>. Never edit them here. Where this file and a shared file disagree, this file wins for this package.</p>
+<p>@.claude/shared/workflow.md @.claude/shared/r-package.md @.claude/shared/ci.md @.claude/shared/native-code.md @.claude/shared/correctness.md @.claude/shared/assurance.md</p>
+<p>This package predates those files and departs from them in a few places. Each departure is stated as one below, in the section it belongs to.</p>
+</div>
+<div class="section level2">
 <h2 id="what-this-is">What this is<a class="anchor" aria-label="anchor" href="#what-this-is"></a></h2>
-<p>An R interface to the Apache DataSketches C++ library: KLL, REQ, t-Digest, HLL, CPC, Theta, Frequent Items, Count-Min, Array of Doubles (tuple), VarOpt, EBPPS and Bloom filter sketches. Each sketch is an R6 object wrapping a native sketch held in an external pointer. The package is a thin, validated binding. It does not reimplement algorithms, and it does not add sketch types that upstream lacks. Runtime dependencies are <code>R6</code> and <code>rlang</code> only; the C++ side links <code>cpp11</code> and the vendored headers, nothing else.</p>
-<p>There is no design or roadmap document in this repository. Source comments refer to <code>_dev/WORKING-ON.md</code>, but that directory is build-ignored and not tracked, so it is not available. Treat the exported docs and the tests as the contract.</p>
+<p>An R interface to the Apache DataSketches C++ library: KLL, REQ, t-Digest, HLL, CPC, Theta, Frequent Items, Count-Min, Array of Doubles (tuple), VarOpt, EBPPS and Bloom filter sketches. Each sketch is an R6 object wrapping a native sketch held in an external pointer. The package is a thin, validated binding. It does not reimplement algorithms, and it does not add sketch types that upstream lacks.</p>
+<p>Deviation from the zero-dependency rule: runtime dependencies are <code>R6</code> and <code>rlang</code>. The C++ side links <code>cpp11</code> and the vendored headers, nothing else.</p>
+<p>There is no design or roadmap document in this repository, and no <code>.agents/</code> directory. Source comments refer to <code>_dev/WORKING-ON.md</code>, but that directory is build-ignored and not tracked, so it is not available. Treat the exported docs and the tests as the contract.</p>
 </div>
 <div class="section level2">
 <h2 id="current-state">Current state<a class="anchor" aria-label="anchor" href="#current-state"></a></h2>
 <p>On CRAN as 0.1.1 (published 2026-09-23), clean on every CRAN check flavor (verified 2026-09-30). <code>main</code> is the development version, <code>0.1.1.9000</code>. Every sketch listed in <code>DESCRIPTION</code> is implemented. Not implemented: typed file persistence (<code>write_sketch()</code>). Code comments still say it was deferred to 0.1.1; it was not built.</p>
-</div>
+<p>Gaps from the shared rules, as of 2026-11-11:</p>
+<ul><li>No <code>.agents/assurance.md</code> yet, which <code>assurance.md</code> expects of every package.</li>
+<li>No <code>cran-release.yaml</code>, so the tag, the GitHub release and the <code>.9000</code> bump are not automated (see Releasing below).</li>
+<li>The <code>R-CMD-check.yaml</code> caller passes no <code>profile:</code> and has no <code>workflow_dispatch:</code> or weekly <code>schedule:</code>, unlike r-actions’ <code>examples/</code>.</li>
+<li>The vendored tree is not under <code>src/vendor/</code>, and there is no <code>PROVENANCE</code> file, checksum record, <code>tools/patches/</code> or own <code>nm -u</code> guard (see Vendored native code).</li>
+</ul></div>
 <div class="section level2">
-<h2 id="stage-tracking">Stage tracking<a class="anchor" aria-label="anchor" href="#stage-tracking"></a></h2>
-<p>The next release is tracked by a parent issue titled with the bare version (currently #14, <code>v0.1.2</code>, label <code>stage</code>), with the work planned for it as sub-issues. A separate issue labelled <code>cran-release</code> records the earliest date CRAN’s cadence allows the next submission: the last <code>Date/Publication</code> plus six weeks. When a version is published on CRAN, close both and open new ones for the next version. Close work items by putting <code>Closes #&lt;n&gt;</code> in the pull request.</p>
+<h2 id="versions-and-dependents">Versions and dependents<a class="anchor" aria-label="anchor" href="#versions-and-dependents"></a></h2>
+<p>The current version’s parent issue is <a href="https://github.com/pedrobtz/data.sketches/issues/17" class="external-link">#17</a>, <code>v0.1.2</code>. The <code>cran-release</code> reminder for it is <a href="https://github.com/pedrobtz/data.sketches/issues/15" class="external-link">#15</a>: the earliest date CRAN’s cadence allows the next submission, the last <code>Date/Publication</code> plus six weeks. Sibling packages that depend on this one: none.</p>
+<div class="section level3">
+<h3 id="releasing">Releasing<a class="anchor" aria-label="anchor" href="#releasing"></a></h3>
+<p>Deviation, until a <code>cran-release.yaml</code> exists: releases go through a <code>release/&lt;version&gt;</code> branch that sets the version, <code>NEWS.md</code> and <code>cran-comments.md</code>. After CRAN accepts a release, bump to <code>&lt;version&gt;.9000</code> by hand.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="commands">Commands<a class="anchor" aria-label="anchor" href="#commands"></a></h2>
-<p>Run from the package root.</p>
-<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::load_all()'</span>                <span class="co"># compile src/ and load</span></span>
-<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::document()'</span>                <span class="co"># roxygen + cpp11 registration</span></span>
-<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test()'</span>                    <span class="co"># full testthat suite</span></span>
-<span id="cb1-4"><a href="#cb1-4" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(filter = "theta")'</span>    <span class="co"># one test file</span></span>
-<span id="cb1-5"><a href="#cb1-5" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(shuffle = TRUE)'</span>      <span class="co"># order independence</span></span>
-<span id="cb1-6"><a href="#cb1-6" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::check()'</span>                   <span class="co"># R CMD check</span></span>
-<span id="cb1-7"><a href="#cb1-7" tabindex="-1"></a><span class="ex">air</span> format .                                     <span class="co"># format R sources</span></span>
-<span id="cb1-8"><a href="#cb1-8" tabindex="-1"></a><span class="ex">Rscript</span> tools/update-datasketches-cpp.R          <span class="co"># refresh vendored headers</span></span></code></pre></div>
+<p>The shared commands apply. Specific to this package:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode sh"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::document()'</span>                <span class="co"># also regenerates cpp11 registration</span></span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="ex">Rscript</span> <span class="at">-e</span> <span class="st">'devtools::test(filter = "theta")'</span>    <span class="co"># one sketch's test file</span></span>
+<span id="cb1-3"><a href="#cb1-3" tabindex="-1"></a><span class="ex">Rscript</span> tools/update-datasketches-cpp.R          <span class="co"># refresh vendored headers</span></span></code></pre></div>
 <p>The first compile of <code>src/</code> takes a minute or two because every bridge file instantiates large header-only templates.</p>
 </div>
 <div class="section level2">
 <h2 id="architecture">Architecture<a class="anchor" aria-label="anchor" href="#architecture"></a></h2>
 <p>Each sketch family is one R file and one C++ file, paired by name, for example <code>R/quantiles-kll-doubles.R</code> and <code>src/kll_doubles.cpp</code>. The pattern is the same in every pair, so read one pair before touching another.</p>
 <ul><li>
-<strong>C++ bridge (<code>src/&lt;sketch&gt;.cpp</code>).</strong> Owns the native object in a <code>cpp11::external_pointer</code> tagged with a symbol such as <code>data.sketches::kll_doubles_sketch</code>. A <code>*_from_xptr()</code> helper checks the type and tag and that the pointer is non-null before any use. Functions exported to R are marked <code>[[cpp11::register]]</code> and end in <code>_cpp</code>. <code>src/cpp11.cpp</code> and <code>R/cpp11.R</code> are generated by <code>devtools::document()</code>; never edit them.</li>
+<strong>C++ bridge (<code>src/&lt;sketch&gt;.cpp</code>).</strong> Owns the native object in a <code>cpp11::external_pointer</code> tagged with a symbol such as <code>data.sketches::kll_doubles_sketch</code>. A <code>*_from_xptr()</code> helper checks the type and tag and that the pointer is non-null before any use. Functions exported to R are marked <code>[[cpp11::register]]</code> and end in <code>_cpp</code>; that suffix, not a prefix, marks the native symbols here. <code>src/cpp11.cpp</code> and <code>R/cpp11.R</code> are generated by <code>devtools::document()</code>; never edit them.</li>
 <li>
 <strong>R6 generator (<code>R/&lt;family&gt;-&lt;sketch&gt;.R</code>).</strong> An internal <code>R6Class</code> with <code>cloneable = FALSE</code> holds the pointer in <code>private$ptr</code>. The exported constructor, such as <code>kll_doubles(x, k, bytes)</code>, calls <code>$new()</code>. Two-sketch operations reach the other instance’s pointer through a <code>&lt;sketch&gt;_ptr()</code> helper that reads <code>.__enclos_env__$private</code>.</li>
 <li>
@@ -74,6 +85,7 @@
 <li>
 <strong>S3 methods (<code>R/print.R</code>).</strong> <code>format</code>, <code>print</code>, <code>as.character</code> and <code>summary</code> delegate to the R6 methods after <code>check_alive()</code>.</li>
 </ul><p>Adding a sketch type touches all of these: the bridge, the R file, a validator and <code>.datasketches_alive</code> entry in <code>R/checks.R</code>, the S3 delegators in <code>R/print.R</code>, the <code>sketch_builders</code> list in <code>tests/testthat/test-conditions.R</code>, and the reference index in <code>_pkgdown.yml</code>.</p>
+<p>Generated files beyond roxygen’s: <code>R/cpp11.R</code> and <code>src/cpp11.cpp</code> (by <code>devtools::document()</code>) and <code>R/datasketches-version.R</code> (by the updater script). Never edit them by hand. Deviation: <code>README.md</code> is the source; there is no <code>README.Rmd</code>.</p>
 </div>
 <div class="section level2">
 <h2 id="invariants-that-are-easy-to-break">Invariants that are easy to break<a class="anchor" aria-label="anchor" href="#invariants-that-are-easy-to-break"></a></h2>
@@ -82,7 +94,7 @@
 <li>
 <strong>Reject self-merge in R.</strong> Upstream <code><a href="https://rdrr.io/r/base/merge.html" class="external-link">merge()</a></code> has no aliasing guard, so <code>a$merge(a)</code> is undefined behaviour. Every <code>$merge()</code> compares pointers with <code><a href="https://rdrr.io/r/base/identical.html" class="external-link">identical()</a></code> first and raises <code>datasketches_self_merge</code>.</li>
 <li>
-<strong>Every error is a <code>datasketches_error</code>.</strong> New checks use <code>abort_invalid()</code> with a <code>datasketches_&lt;kind&gt;</code> class. New native paths that can throw on user input must be wrapped so the upstream <code>std::exception</code> never reaches the user as a bare <code>simpleError</code>.</li>
+<strong>Every error is a <code>datasketches_error</code>.</strong> New checks use <code>abort_invalid()</code> with a <code>datasketches_&lt;kind&gt;</code> class. Deviation: the prefix is <code>datasketches_</code>, not the package name, and classes carry no <code>_error</code> suffix. New native paths that can throw on user input must be wrapped so the upstream <code>std::exception</code> never reaches the user as a bare <code>simpleError</code>.</li>
 <li>
 <strong>Keep R and C++ bounds in sync.</strong> R validators mirror the C++ checks, for example <code>check_k()</code> and <code>checked_k()</code>. Integer-valued doubles that cross to <code>uint64_t</code> must stay within 2^53 (<code>checked_uint64_from_double()</code> in <code>src/native_utils.h</code> and <code>check_uint64ish()</code> in R).</li>
 <li>
@@ -95,32 +107,19 @@
 <strong>Hot loops read the raw buffer</strong> (<code>REAL(values.data())</code>), not cpp11’s per-element accessor, which dominates the cost on large vectors.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="testing-conventions">Testing conventions<a class="anchor" aria-label="anchor" href="#testing-conventions"></a></h2>
+<h2 id="testing">Testing<a class="anchor" aria-label="anchor" href="#testing"></a></h2>
 <ul><li>One test file per sketch, plus <code>test-conditions.R</code> (classed errors across every constructor) and <code>test-interrupt-safety.R</code>.</li>
-<li>Assert on condition classes, <code>expect_error(..., class = "datasketches_...")</code>, not message text.</li>
+<li>Assert with <code>expect_error(..., class = "datasketches_...")</code>.</li>
 <li>
 <code>test-interrupt-safety.R</code> uses <code><a href="https://rdrr.io/r/base/setTimeLimit.html" class="external-link">setTimeLimit()</a></code> to trigger the interrupt probes without a signal. It is <code>skip_on_cran()</code> because it allocates 2e7-element vectors.</li>
 <li>There are no <code>helper-*.R</code> files and no external conformance corpus. The cross-implementation guarantee is that <code>$serialize()</code> bytes round-trip.</li>
 <li>CRAN check time is under a minute on Linux; keep it there.</li>
 </ul></div>
 <div class="section level2">
-<h2 id="definition-of-done">Definition of done<a class="anchor" aria-label="anchor" href="#definition-of-done"></a></h2>
-<p><code>devtools::document()</code> and <code>devtools::check()</code> clean, meaning 0 errors, 0 warnings and 0 notes. <code>devtools::test(shuffle = TRUE)</code> green. CI green on every leg. A user-facing change also needs a test, roxygen documentation and a <code>NEWS.md</code> entry under the development heading.</p>
-</div>
-<div class="section level2">
-<h2 id="editing-rules">Editing rules<a class="anchor" aria-label="anchor" href="#editing-rules"></a></h2>
-<ul><li>roxygen comments are the source. Never edit <code>man/</code>, <code>NAMESPACE</code>, <code>R/cpp11.R</code> or <code>src/cpp11.cpp</code> by hand.</li>
-<li>
-<code>README.md</code> is the source; there is no <code>README.Rmd</code>.</li>
-<li>
-<code>R/datasketches-version.R</code> is written by the updater script.</li>
-<li>Keep prose simple and short. Wrap roxygen text at 80 characters and run <code>air format .</code> on R sources.</li>
-</ul></div>
-<div class="section level2">
 <h2 id="continuous-integration">Continuous integration<a class="anchor" aria-label="anchor" href="#continuous-integration"></a></h2>
 <p>Workflows come from <code>pedrobtz/r-actions</code>:</p>
 <ul><li>
-<code>R-CMD-check.yaml</code> calls <code>r-cmd-check.yml@v1</code>. It runs the GitHub runners and the CRAN-like r-devel containers (clang and GCC), which matter because the vendored headers are compiled with CRAN’s newest compilers.</li>
+<code>R-CMD-check.yaml</code> calls <code>r-cmd-check.yml@v1</code>. It runs the GitHub runners and the CRAN-like r-devel containers (clang and GCC), which matter because the vendored headers are compiled with CRAN’s newest compilers. Its <code>runners</code> input restores the <code>ubuntu-latest (devel)</code> row that the r-actions default drops.</li>
 <li>
 <code>coverage.yaml</code> calls <code>coverage.yml</code> pinned to a commit, because it runs with a write token. It commits the badge to <code>gh-pages</code>, not <code>main</code>.</li>
 <li>
@@ -129,11 +128,7 @@
 </div>
 <div class="section level2">
 <h2 id="vendored-native-code">Vendored native code<a class="anchor" aria-label="anchor" href="#vendored-native-code"></a></h2>
-<p><code>src/datasketches/</code> is Apache DataSketches C++ 5.2.0 (Apache-2.0), header-only, with upstream <code>LICENSE</code> and <code>NOTICE</code> alongside. It has no local patches. <code>tools/update-datasketches-cpp.R</code> pins the version in <code>DATASKETCHES_VERSION</code> and replaces the tree from the upstream tag. It also rewrites <code>R/datasketches-version.R</code>. After a bump, update <code>inst/COPYRIGHTS</code>, the include list in both <code>src/Makevars</code> and <code>src/Makevars.win</code> if components changed, and <code>NEWS.md</code>.</p>
-</div>
-<div class="section level2">
-<h2 id="commits-and-pull-requests">Commits and pull requests<a class="anchor" aria-label="anchor" href="#commits-and-pull-requests"></a></h2>
-<p>Short, imperative, sentence-case commit subjects. The <code>main</code> branch requires pull requests: work on a branch and do not merge unless told to. Releases go through a <code>release/&lt;version&gt;</code> branch that sets the version, <code>NEWS.md</code> and <code>cran-comments.md</code>. After CRAN accepts a release, bump to <code>&lt;version&gt;.9000</code>.</p>
+<p><code>src/datasketches/</code> is Apache DataSketches C++ 5.2.0 (Apache-2.0), header-only, with upstream <code>LICENSE</code> and <code>NOTICE</code> alongside. It has no local patches. Deviation: the tree lives in <code>src/datasketches/</code>, not <code>src/vendor/&lt;lib&gt;/</code>. <code>tools/update-datasketches-cpp.R</code> pins the version in <code>DATASKETCHES_VERSION</code>, downloads that upstream tag’s tarball and replaces the tree. It also rewrites <code>R/datasketches-version.R</code>. After a bump, update <code>inst/COPYRIGHTS</code>, the include list in both <code>src/Makevars</code> and <code>src/Makevars.win</code> if components changed, and <code>NEWS.md</code>.</p>
 </div>
 </div>
 
