@@ -18,8 +18,11 @@
 # "R-CMD-check / macos-latest (release)". The main ruleset's required status
 # checks must name them that way.
 on:
-  push:
-    branches: [main, master]
+  # No `push:`: a pull request already checks its merge with main,
+  # and the schedule checks main (r-actions README, "Pushes to main").
+  schedule:
+    - cron: "46 2 * * 6"
+  workflow_dispatch:
   pull_request:
 
 name: R-CMD-check.yaml
