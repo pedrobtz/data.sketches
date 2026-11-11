@@ -3,6 +3,22 @@
 <!-- markdownlint-disable-next-line MD013 -->
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Shared conventions
+
+The portfolio's shared rules are synced into `.claude/shared/` from
+`pedrobtz/packages:claude/shared/`. Never edit them here. Where this file and
+a shared file disagree, this file wins for this package.
+
+@.claude/shared/workflow.md
+@.claude/shared/r-package.md
+@.claude/shared/ci.md
+@.claude/shared/native-code.md
+@.claude/shared/correctness.md
+@.claude/shared/assurance.md
+
+This package predates those files and departs from them in a few places.
+Each departure is stated as one below, in the section it belongs to.
+
 ## What this is
 
 An R interface to the Apache DataSketches C++ library: KLL, REQ, t-Digest,
@@ -10,13 +26,15 @@ HLL, CPC, Theta, Frequent Items, Count-Min, Array of Doubles (tuple), VarOpt,
 EBPPS and Bloom filter sketches. Each sketch is an R6 object wrapping a native
 sketch held in an external pointer. The package is a thin, validated binding.
 It does not reimplement algorithms, and it does not add sketch types that
-upstream lacks. Runtime dependencies are `R6` and `rlang` only; the C++ side
-links `cpp11` and the vendored headers, nothing else.
+upstream lacks.
 
-There is no design or roadmap document in this repository. Source comments
-refer to `_dev/WORKING-ON.md`, but that directory is build-ignored and not
-tracked, so it is not available. Treat the exported docs and the tests as the
-contract.
+Deviation from the zero-dependency rule: runtime dependencies are `R6` and
+`rlang`. The C++ side links `cpp11` and the vendored headers, nothing else.
+
+There is no design or roadmap document in this repository, and no
+`.agents/` directory. Source comments refer to `_dev/WORKING-ON.md`, but that
+directory is build-ignored and not tracked, so it is not available. Treat the
+exported docs and the tests as the contract.
 
 ## Current state
 
@@ -26,28 +44,41 @@ Every sketch listed in `DESCRIPTION` is implemented. Not implemented: typed
 file persistence (`write_sketch()`). Code comments still say it was deferred
 to 0.1.1; it was not built.
 
-## Stage tracking
+Gaps from the shared rules, as of 2026-11-11:
 
-The next release is tracked by a parent issue titled with the bare version
-(currently #14, `v0.1.2`, label `stage`), with the work planned for it as
-sub-issues. A separate issue labelled `cran-release` records the earliest
-date CRAN's cadence allows the next submission: the last `Date/Publication`
-plus six weeks. When a version is published on CRAN, close both and open new
-ones for the next version. Close work items by putting `Closes #<n>` in the
-pull request.
+- No `.agents/assurance.md` yet, which `assurance.md` expects of every
+  package.
+- No `cran-release.yaml`, so the tag, the GitHub release and the `.9000`
+  bump are not automated (see Releasing below).
+- The `R-CMD-check.yaml` caller passes no `profile:` and has no
+  `workflow_dispatch:` or weekly `schedule:`, unlike r-actions' `examples/`.
+- The vendored tree is not under `src/vendor/`, and there is no
+  `PROVENANCE` file, checksum record, `tools/patches/` or own `nm -u` guard
+  (see Vendored native code).
+
+## Versions and dependents
+
+The current version's parent issue is
+[#17](https://github.com/pedrobtz/data.sketches/issues/17), `v0.1.2`. The
+`cran-release` reminder for it is
+[#15](https://github.com/pedrobtz/data.sketches/issues/15): the earliest date
+CRAN's cadence allows the next submission, the last `Date/Publication` plus
+six weeks. Sibling packages that depend on this one: none.
+
+### Releasing
+
+Deviation, until a `cran-release.yaml` exists: releases go through a
+`release/<version>` branch that sets the version, `NEWS.md` and
+`cran-comments.md`. After CRAN accepts a release, bump to `<version>.9000` by
+hand.
 
 ## Commands
 
-Run from the package root.
+The shared commands apply. Specific to this package:
 
 ```sh
-Rscript -e 'devtools::load_all()'                # compile src/ and load
-Rscript -e 'devtools::document()'                # roxygen + cpp11 registration
-Rscript -e 'devtools::test()'                    # full testthat suite
-Rscript -e 'devtools::test(filter = "theta")'    # one test file
-Rscript -e 'devtools::test(shuffle = TRUE)'      # order independence
-Rscript -e 'devtools::check()'                   # R CMD check
-air format .                                     # format R sources
+Rscript -e 'devtools::document()'                # also regenerates cpp11 registration
+Rscript -e 'devtools::test(filter = "theta")'    # one sketch's test file
 Rscript tools/update-datasketches-cpp.R          # refresh vendored headers
 ```
 
@@ -64,7 +95,8 @@ is the same in every pair, so read one pair before touching another.
   `cpp11::external_pointer` tagged with a symbol such as
   `data.sketches::kll_doubles_sketch`. A `*_from_xptr()` helper checks the
   type and tag and that the pointer is non-null before any use. Functions
-  exported to R are marked `[[cpp11::register]]` and end in `_cpp`.
+  exported to R are marked `[[cpp11::register]]` and end in `_cpp`; that
+  suffix, not a prefix, marks the native symbols here.
   `src/cpp11.cpp` and `R/cpp11.R` are generated by `devtools::document()`;
   never edit them.
 - **R6 generator (`R/<family>-<sketch>.R`).** An internal `R6Class` with
@@ -87,6 +119,11 @@ and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
 `tests/testthat/test-conditions.R`, and the reference index in
 `_pkgdown.yml`.
 
+Generated files beyond roxygen's: `R/cpp11.R` and `src/cpp11.cpp` (by
+`devtools::document()`) and `R/datasketches-version.R` (by the updater
+script). Never edit them by hand. Deviation: `README.md` is the source; there
+is no `README.Rmd`.
+
 ## Invariants that are easy to break
 
 - **Interrupts must go through `cpp11::check_user_interrupt()`, never
@@ -98,9 +135,11 @@ and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
   `a$merge(a)` is undefined behaviour. Every `$merge()` compares pointers with
   `identical()` first and raises `datasketches_self_merge`.
 - **Every error is a `datasketches_error`.** New checks use `abort_invalid()`
-  with a `datasketches_<kind>` class. New native paths that can throw on user
-  input must be wrapped so the upstream `std::exception` never reaches the user
-  as a bare `simpleError`.
+  with a `datasketches_<kind>` class. Deviation: the prefix is
+  `datasketches_`, not the package name, and classes carry no `_error`
+  suffix. New native paths that can throw on user input must be wrapped so
+  the upstream `std::exception` never reaches the user as a bare
+  `simpleError`.
 - **Keep R and C++ bounds in sync.** R validators mirror the C++ checks, for
   example `check_k()` and `checked_k()`. Integer-valued doubles that cross to
   `uint64_t` must stay within 2^53 (`checked_uint64_from_double()` in
@@ -117,12 +156,11 @@ and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
 - **Hot loops read the raw buffer** (`REAL(values.data())`), not cpp11's
   per-element accessor, which dominates the cost on large vectors.
 
-## Testing conventions
+## Testing
 
 - One test file per sketch, plus `test-conditions.R` (classed errors across
   every constructor) and `test-interrupt-safety.R`.
-- Assert on condition classes, `expect_error(..., class = "datasketches_...")`,
-  not message text.
+- Assert with `expect_error(..., class = "datasketches_...")`.
 - `test-interrupt-safety.R` uses `setTimeLimit()` to trigger the interrupt
   probes without a signal. It is `skip_on_cran()` because it allocates
   2e7-element vectors.
@@ -130,29 +168,15 @@ and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
   cross-implementation guarantee is that `$serialize()` bytes round-trip.
 - CRAN check time is under a minute on Linux; keep it there.
 
-## Definition of done
-
-`devtools::document()` and `devtools::check()` clean, meaning 0 errors, 0
-warnings and 0 notes. `devtools::test(shuffle = TRUE)` green. CI green on every
-leg. A user-facing change also needs a test, roxygen documentation and a
-`NEWS.md` entry under the development heading.
-
-## Editing rules
-
-- roxygen comments are the source. Never edit `man/`, `NAMESPACE`,
-  `R/cpp11.R` or `src/cpp11.cpp` by hand.
-- `README.md` is the source; there is no `README.Rmd`.
-- `R/datasketches-version.R` is written by the updater script.
-- Keep prose simple and short. Wrap roxygen text at 80 characters and run
-  `air format .` on R sources.
-
 ## Continuous integration
 
 Workflows come from `pedrobtz/r-actions`:
 
 - `R-CMD-check.yaml` calls `r-cmd-check.yml@v1`. It runs the GitHub runners
   and the CRAN-like r-devel containers (clang and GCC), which matter because
-  the vendored headers are compiled with CRAN's newest compilers.
+  the vendored headers are compiled with CRAN's newest compilers. Its
+  `runners` input restores the `ubuntu-latest (devel)` row that the r-actions
+  default drops.
 - `coverage.yaml` calls `coverage.yml` pinned to a commit, because it runs
   with a write token. It commits the badge to `gh-pages`, not `main`.
 - `pkgdown.yaml` is the r-lib template. It builds the CRAN release at the site
@@ -165,15 +189,9 @@ Required status checks are named `R-CMD-check / <leg>`.
 
 `src/datasketches/` is Apache DataSketches C++ 5.2.0 (Apache-2.0),
 header-only, with upstream `LICENSE` and `NOTICE` alongside. It has no local
-patches. `tools/update-datasketches-cpp.R` pins the version in
-`DATASKETCHES_VERSION` and replaces the tree from the upstream tag. It also
-rewrites `R/datasketches-version.R`. After a bump, update `inst/COPYRIGHTS`,
-the include list in both `src/Makevars` and `src/Makevars.win` if components
-changed, and `NEWS.md`.
-
-## Commits and pull requests
-
-Short, imperative, sentence-case commit subjects. The `main` branch requires
-pull requests: work on a branch and do not merge unless told to. Releases go
-through a `release/<version>` branch that sets the version, `NEWS.md` and
-`cran-comments.md`. After CRAN accepts a release, bump to `<version>.9000`.
+patches. Deviation: the tree lives in `src/datasketches/`, not
+`src/vendor/<lib>/`. `tools/update-datasketches-cpp.R` pins the version in
+`DATASKETCHES_VERSION`, downloads that upstream tag's tarball and replaces
+the tree. It also rewrites `R/datasketches-version.R`. After a bump, update
+`inst/COPYRIGHTS`, the include list in both `src/Makevars` and
+`src/Makevars.win` if components changed, and `NEWS.md`.
