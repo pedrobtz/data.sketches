@@ -118,6 +118,12 @@ CouponList<A>* CouponList<A>::newList(const void* bytes, size_t len, const A& al
                                 + ", found: " + std::to_string(len));
   }
 
+  // An empty image holds no coupons, so it cannot count any: with the empty
+  // flag set the coupons are not read, and a non-zero count made a sketch of
+  // that many zero coupons (an estimate of nothing that is not zero).
+  if (emptyFlag && couponCount != 0) {
+    throw std::invalid_argument("Possible corruption: empty CouponList image with a non-zero count");
+  }
   // The list's coupons come from the image: each must be a real coupon (a
   // non-zero value field) and appear once, or the sketch counts coupons it
   // does not hold and changes on the next round trip.

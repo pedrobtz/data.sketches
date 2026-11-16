@@ -24,9 +24,11 @@ deserialization:
   them where the hash probe finds them, and a misplaced coupon was rewritten
   on the next round trip. A set too large to stay a set is corruption, and
   the promoted sketch is freed rather than leaked.
+- CouponList: an image flagged empty must count no coupons (it is not read,
+  and a non-zero count made a sketch of that many zero coupons).
 
---- a/hll/include/AuxHashMap-internal.hpp	2026-11-16 21:33:12
-+++ b/hll/include/AuxHashMap-internal.hpp	2026-11-16 21:33:12
+--- a/hll/include/AuxHashMap-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/AuxHashMap-internal.hpp	2026-11-16 22:03:05
 @@ -20,6 +20,7 @@
  #ifndef _AUXHASHMAP_INTERNAL_HPP_
  #define _AUXHASHMAP_INTERNAL_HPP_
@@ -120,8 +122,8 @@ deserialization:
      throw std::invalid_argument("Deserialized AuxHashMap has wrong number of entries");
    }
  
---- a/hll/include/CouponHashSet-internal.hpp	2026-11-16 21:33:12
-+++ b/hll/include/CouponHashSet-internal.hpp	2026-11-16 21:33:12
+--- a/hll/include/CouponHashSet-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/CouponHashSet-internal.hpp	2026-11-16 22:03:05
 @@ -23,6 +23,8 @@
  #include "CouponHashSet.hpp"
  
@@ -236,8 +238,8 @@ deserialization:
  
    ChsAlloc chsa(allocator);
    CouponHashSet<A>* sketch = new (chsa.allocate(1)) CouponHashSet<A>(lgK, tgtHllType, allocator);
---- a/hll/include/CouponList-internal.hpp	2026-11-16 21:33:12
-+++ b/hll/include/CouponList-internal.hpp	2026-11-16 21:33:12
+--- a/hll/include/CouponList-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/CouponList-internal.hpp	2026-11-16 22:03:05
 @@ -27,6 +27,7 @@
  
  #include <algorithm>
@@ -246,10 +248,16 @@ deserialization:
  #include <stdexcept>
  
  namespace datasketches {
-@@ -117,6 +118,24 @@
+@@ -117,6 +118,30 @@
                                  + ", found: " + std::to_string(len));
    }
  
++  // An empty image holds no coupons, so it cannot count any: with the empty
++  // flag set the coupons are not read, and a non-zero count made a sketch of
++  // that many zero coupons (an estimate of nothing that is not zero).
++  if (emptyFlag && couponCount != 0) {
++    throw std::invalid_argument("Possible corruption: empty CouponList image with a non-zero count");
++  }
 +  // The list's coupons come from the image: each must be a real coupon (a
 +  // non-zero value field) and appear once, or the sketch counts coupons it
 +  // does not hold and changes on the next round trip.
@@ -271,8 +279,8 @@ deserialization:
    ClAlloc cla(allocator);
    CouponList<A>* sketch = new (cla.allocate(1)) CouponList<A>(lgK, tgtHllType, mode, allocator);
    sketch->couponCount_ = couponCount;
---- a/hll/include/HllArray-internal.hpp	2026-11-16 21:33:12
-+++ b/hll/include/HllArray-internal.hpp	2026-11-16 21:33:12
+--- a/hll/include/HllArray-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/HllArray-internal.hpp	2026-11-16 22:03:05
 @@ -136,6 +136,11 @@
    typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
    aux_hash_map_ptr aux_ptr;

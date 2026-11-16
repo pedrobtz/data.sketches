@@ -747,6 +747,9 @@ compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize(const v
     if (data.theta > theta_constants::MAX_THETA) {
       throw std::invalid_argument("Possible corruption: theta exceeds its maximum");
     }
+    if (data.is_empty && !entries.empty()) {
+      throw std::invalid_argument("Possible corruption: empty sketch with entries");
+    }
     uint64_t previous = 0;
     for (const uint64_t entry: entries) {
       if (entry == 0 || entry >= data.theta || (data.is_ordered && entry <= previous)) {

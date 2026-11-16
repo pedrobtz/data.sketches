@@ -29,6 +29,8 @@ Vendored dependency: Apache DataSketches C++, header-only
                  0013-tdigest-deserialize-validation.patch
                  0014-theta-validate-compact-entries.patch
                  0015-varopt-deserialize-fixes.patch
+                 0016-tuple-validate-compact-entries.patch
+                 0017-kll-item-count-invariants.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -55,7 +57,8 @@ constructor's `bytes =`; patched, each raises datasketches_invalid_bytes:
   0008  HLL: aux map, coupon list and coupon set consistent with the image
         (shift counts, misaligned reads, leak, double free, heap overflow on
         write, bad downcast, HLL_4 tokens without aux entries, invalid or
-        duplicate coupons; sets rebuilt by insertion)
+        duplicate coupons, counted coupons in an empty list; sets rebuilt by
+        insertion)
   0009  Frequent Items: sizes bounded, map sized by the items, weights checked
   0010  REQ: item count checked against the bytes before allocating
   0011  EBPPS: header consistent; k no longer reserved up front
@@ -64,9 +67,12 @@ constructor's `bytes =`; patched, each raises datasketches_invalid_bytes:
         and means consistent; weighted means computed without overflow
         (this one also affected valid data near the largest double)
   0014  Theta: theta <= MAX_THETA, compact entries in (0, theta), ordered and
-        unique
+        unique, none in an empty sketch
   0015  VarOpt: marks freed with their real size (sized-delete mismatch);
         full-mode arrays checked against the bytes before allocating
+  0016  Array of Doubles: compact entries validated as for Theta (0014)
+  0017  KLL: retained count consistent with n (a mismatch made serialize()
+        write past its buffer)
 
 Failed allocations (found by alloc-failure.yaml, #35), each with a
 regression test in tools/vendor/tests/:

@@ -17,7 +17,8 @@
   filter of zero capacity divided by zero on `$update()`), or an allocation
   of gigabytes from a few bytes. The families affected are `hll()`,
   `bloom_filter()`, `ebpps()`, `frequent_items()`, `req()`, `count_min()`,
-  `tdigest_double()`, `theta()` and `varopt()`. Payloads written by valid sketches,
+  `tdigest_double()`, `theta()`, `array_of_doubles()`, `kll_doubles()`,
+  `kll_floats()` and `varopt()`. Payloads written by valid sketches,
   including those from data.sketches 0.1.1, still load.
 
 * A small corrupt `req()` payload could request an 8 GiB allocation; 5.3.1

@@ -14,7 +14,7 @@ src/vendor/datasketches/
 This directory vendors the header-only sources of the Apache DataSketches C++
 library, version 5.3.1 (https://github.com/apache/datasketches-cpp, tag 5.3.1),
 from the Apache source release apache-datasketches-cpp-5.3.1-src.zip, with
-fifteen local changes, all under the Apache License, Version 2.0, in
+seventeen local changes, all under the Apache License, Version 2.0, in
 tools/patches/datasketches/:
 
   0001-hll-validate-lg-k.patch              HLL input validation
@@ -32,6 +32,8 @@ tools/patches/datasketches/:
   0013-tdigest-deserialize-validation.patch t-digest input validation
   0014-theta-validate-compact-entries.patch Theta input validation
   0015-varopt-deserialize-fixes.patch       VarOpt input validation, deleter
+  0016-tuple-validate-compact-entries.patch Array of Doubles input validation
+  0017-kll-item-count-invariants.patch      KLL input validation
 
 src/vendor/PROVENANCE says what each fixes and records the archive, its
 digests and the update procedure (tools/vendor/fetch).
