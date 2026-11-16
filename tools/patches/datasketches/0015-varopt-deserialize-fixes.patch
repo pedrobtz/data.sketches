@@ -1,0 +1,39 @@
+Fix VarOpt's marks deleter and bound a full-mode image by its bytes.
+
+Found by data.sketches tools/fuzz under ASan:
+
+- marks_deleter freed the marks array as one element although it was
+  allocated with num: a sized-deallocation mismatch (new-delete-type-
+  mismatch).
+- In full mode the arrays are sized k + 1 = h + r + 1, and the image holds h
+  weights and h + r items; the bytes are now checked before allocating, so
+  a few bytes cannot demand gigabytes. (An empty or warmup image allocates
+  the capacity its k and resize factor declare, as any reader must.)
+
+--- a/sampling/include/var_opt_sketch_impl.hpp	2026-11-16 21:33:12
++++ b/sampling/include/var_opt_sketch_impl.hpp	2026-11-16 21:33:12
+@@ -497,6 +497,13 @@
+   ptr += copy_from_mem(ptr, r);
+ 
+   const uint32_t array_size = validate_and_get_target_size(preamble_longs, k, n, h, r, rf);
++  // In full mode the image holds h weights and h + r items (at least a byte
++  // each), and the arrays are sized k + 1 = h + r + 1: check the bytes before
++  // allocating, so a few bytes cannot demand gigabytes.
++  if (preamble_longs == PREAMBLE_LONGS_FULL &&
++      static_cast<uint64_t>(h) * sizeof(double) + static_cast<uint64_t>(h) + r > size) {
++    throw std::invalid_argument("Possible corruption: VarOpt image too short for its items");
++  }
+   
+   // current_items_alloc_ is set but validate R region weight (4th prelong), if needed, before allocating
+   double total_wt_r = 0.0;
+@@ -1472,7 +1479,9 @@
+   marks_deleter(uint32_t num, const A& allocator) : num(num), allocator(allocator) {}
+   void operator() (bool* ptr) {
+     if (ptr != nullptr) {
+-      allocator.deallocate(ptr, 1);
++      // The marks array was allocated with num elements; freeing it as one
++      // is a sized-deallocation mismatch (ASan new-delete-type-mismatch).
++      allocator.deallocate(ptr, num);
+     }
+   }
+   private:

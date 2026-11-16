@@ -23,6 +23,8 @@
 #include "CouponHashSet.hpp"
 
 #include <cstring>
+#include <algorithm>
+#include <vector>
 #include <exception>
 #include <stdexcept>
 
@@ -113,34 +115,62 @@ CouponHashSet<A>* CouponHashSet<A>::newSet(const void* bytes, size_t len, const 
   // An updatable image carries the whole slot array and a separate count;
   // they must agree, or serializing the sketch compactly later writes every
   // non-empty slot into a buffer sized for the count (heap overflow).
-  if (!compactFlag) {
-    uint32_t nonEmpty = 0;
+  if (compactFlag) {
+    // A compact image lists its coupons; each must be a real coupon (non-zero
+    // value field). Duplicates are merged by couponUpdate() below.
+    for (uint32_t i = 0; i < couponCount; ++i) {
+      uint32_t c;
+      std::memcpy(&c, data + hll_constants::HASH_SET_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
+      if (HllUtil<A>::getValue(c) == 0) {
+        throw std::invalid_argument("Possible corruption: invalid coupon in CouponHashSet image");
+      }
+    }
+  } else {
+    // ...and each non-empty slot must hold a real coupon (non-zero value
+    // field), each coupon once.
+    std::vector<uint32_t> present;
     for (uint32_t i = 0; i < couponsInArray; ++i) {
       uint32_t c;
       std::memcpy(&c, data + hll_constants::HASH_SET_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
-      if (c != hll_constants::EMPTY) ++nonEmpty;
+      if (c == hll_constants::EMPTY) continue;
+      if (HllUtil<A>::getValue(c) == 0) {
+        throw std::invalid_argument("Possible corruption: invalid coupon in CouponHashSet image");
+      }
+      present.push_back(c);
     }
-    if (nonEmpty != couponCount) {
+    if (present.size() != couponCount) {
       throw std::invalid_argument("Possible corruption: CouponHashSet count does not match its slots");
+    }
+    std::sort(present.begin(), present.end());
+    if (std::adjacent_find(present.begin(), present.end()) != present.end()) {
+      throw std::invalid_argument("Possible corruption: duplicate coupon in CouponHashSet image");
     }
   }
 
   ChsAlloc chsa(allocator);
   CouponHashSet<A>* sketch = new (chsa.allocate(1)) CouponHashSet<A>(lgK, tgtHllType, allocator);
 
-  if (compactFlag) {
-    const uint8_t* curPos = data + hll_constants::HASH_SET_INT_ARR_START;
-    uint32_t coupon;
-    for (uint32_t i = 0; i < couponCount; ++i, curPos += sizeof(coupon)) {
-      std::memcpy(&coupon, curPos, sizeof(coupon));
-      sketch->couponUpdate(coupon);
+  // Insert each coupon rather than copying an updatable image's table: the
+  // image is not trusted to place its coupons where the hash probe finds
+  // them, and a misplaced one is later rewritten or lost (a round trip
+  // changed the set). Inserting gives a valid set the same contents. A valid
+  // set image never holds enough coupons to promote to an HLL array, so a
+  // promotion means corruption; its result is freed rather than leaked, as
+  // the compact path used to.
+  auto insert = [&sketch](uint32_t coupon) {
+    HllSketchImpl<A>* result = sketch->couponUpdate(coupon);
+    if (result != sketch) {
+      result->get_deleter()(result);
+      sketch->get_deleter()(sketch);
+      throw std::invalid_argument("Possible corruption: CouponHashSet image too large for a set");
     }
-  } else {
-    sketch->coupons_.resize(1ULL << lgArrInts);
-    sketch->couponCount_ = couponCount;
-    std::memcpy(sketch->coupons_.data(),
-                data + hll_constants::HASH_SET_INT_ARR_START,
-                couponsInArray * sizeof(uint32_t));
+  };
+  if (!compactFlag) sketch->coupons_.resize(1ULL << lgArrInts);
+  const uint8_t* curPos = data + hll_constants::HASH_SET_INT_ARR_START;
+  uint32_t coupon;
+  for (uint32_t i = 0; i < couponsInArray; ++i, curPos += sizeof(coupon)) {
+    std::memcpy(&coupon, curPos, sizeof(coupon));
+    if (coupon != hll_constants::EMPTY) insert(coupon);
   }
 
   return sketch;

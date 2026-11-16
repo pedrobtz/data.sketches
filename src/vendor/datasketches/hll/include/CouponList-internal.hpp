@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstring>
 #include <stdexcept>
 
 namespace datasketches {
@@ -115,6 +116,24 @@ CouponList<A>* CouponList<A>::newList(const void* bytes, size_t len, const A& al
   if (len < expectedLength) {
     throw std::out_of_range("Byte array too short for sketch. Expected " + std::to_string(expectedLength)
                                 + ", found: " + std::to_string(len));
+  }
+
+  // The list's coupons come from the image: each must be a real coupon (a
+  // non-zero value field) and appear once, or the sketch counts coupons it
+  // does not hold and changes on the next round trip.
+  if (!emptyFlag) {
+    uint32_t seen[1u << hll_constants::LG_INIT_LIST_SIZE];
+    for (uint32_t i = 0; i < couponCount; ++i) {
+      uint32_t c;
+      std::memcpy(&c, data + hll_constants::LIST_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
+      if (HllUtil<A>::getValue(c) == 0) {
+        throw std::invalid_argument("Possible corruption: invalid coupon in CouponList image");
+      }
+      for (uint32_t j = 0; j < i; ++j) {
+        if (seen[j] == c) throw std::invalid_argument("Possible corruption: duplicate coupon in CouponList image");
+      }
+      seen[i] = c;
+    }
   }
 
   ClAlloc cla(allocator);

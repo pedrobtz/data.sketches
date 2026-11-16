@@ -497,6 +497,13 @@ var_opt_sketch<T, A> var_opt_sketch<T, A>::deserialize(const void* bytes, size_t
   ptr += copy_from_mem(ptr, r);
 
   const uint32_t array_size = validate_and_get_target_size(preamble_longs, k, n, h, r, rf);
+  // In full mode the image holds h weights and h + r items (at least a byte
+  // each), and the arrays are sized k + 1 = h + r + 1: check the bytes before
+  // allocating, so a few bytes cannot demand gigabytes.
+  if (preamble_longs == PREAMBLE_LONGS_FULL &&
+      static_cast<uint64_t>(h) * sizeof(double) + static_cast<uint64_t>(h) + r > size) {
+    throw std::invalid_argument("Possible corruption: VarOpt image too short for its items");
+  }
   
   // current_items_alloc_ is set but validate R region weight (4th prelong), if needed, before allocating
   double total_wt_r = 0.0;
@@ -1472,7 +1479,9 @@ class var_opt_sketch<T, A>::marks_deleter {
   marks_deleter(uint32_t num, const A& allocator) : num(num), allocator(allocator) {}
   void operator() (bool* ptr) {
     if (ptr != nullptr) {
-      allocator.deallocate(ptr, 1);
+      // The marks array was allocated with num elements; freeing it as one
+      // is a sized-deallocation mismatch (ASan new-delete-type-mismatch).
+      allocator.deallocate(ptr, num);
     }
   }
   private:

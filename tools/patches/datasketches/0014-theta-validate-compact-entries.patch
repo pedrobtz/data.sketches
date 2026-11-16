@@ -5,9 +5,13 @@ ordered. The image was not checked: an entry of 0, found by data.sketches
 tools/fuzz, made the compressed serializer compute 0 entry bits and write an
 image it then refused to read back.
 
---- a/theta/include/theta_sketch_impl.hpp	2026-11-16 21:03:57
-+++ b/theta/include/theta_sketch_impl.hpp	2026-11-16 21:03:57
-@@ -739,10 +739,25 @@
+Also: theta itself must not exceed MAX_THETA (one that did needed 64 entry
+bits to compress), and an unordered image may not repeat a hash, since
+serializing sorts the entries and then refuses the duplicates.
+
+--- a/theta/include/theta_sketch_impl.hpp	2026-11-16 21:33:12
++++ b/theta/include/theta_sketch_impl.hpp	2026-11-16 21:33:12
+@@ -739,10 +739,37 @@
  template<typename A>
  compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize(const void* bytes, size_t size, uint64_t seed, const A& allocator) {
    auto data = compact_theta_sketch_parser<true>::parse(bytes, size, seed, false);
@@ -16,12 +20,24 @@ image it then refused to read back.
 +  // compressed serializer compute 0 entry bits and write an image that it
 +  // then refused to read back.
 +  auto check_entries = [&data](const std::vector<uint64_t, A>& entries) {
++    if (data.theta > theta_constants::MAX_THETA) {
++      throw std::invalid_argument("Possible corruption: theta exceeds its maximum");
++    }
 +    uint64_t previous = 0;
 +    for (const uint64_t entry: entries) {
 +      if (entry == 0 || entry >= data.theta || (data.is_ordered && entry <= previous)) {
 +        throw std::invalid_argument("Possible corruption: compact sketch entry out of range or out of order");
 +      }
 +      previous = entry;
++    }
++    // An unordered image may still not repeat a hash: serializing sorts the
++    // entries, and the duplicates are then refused as out of order.
++    if (!data.is_ordered && entries.size() > 1) {
++      std::vector<uint64_t, A> sorted(entries);
++      std::sort(sorted.begin(), sorted.end());
++      if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
++        throw std::invalid_argument("Possible corruption: duplicate entry in compact sketch");
++      }
 +    }
 +  };
    if (data.entry_bits == 64) { // versions 1 to 3
@@ -34,7 +50,7 @@ image it then refused to read back.
    } else { // version 4
      std::vector<uint64_t, A> entries(data.num_entries, 0, allocator);
      const uint8_t* ptr = reinterpret_cast<const uint8_t*>(data.entries_start_ptr);
-@@ -763,6 +778,7 @@
+@@ -763,6 +790,7 @@
        entries[i] += previous;
        previous = entries[i];
      }

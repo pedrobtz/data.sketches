@@ -378,6 +378,9 @@ frequent_items_sketch<T, W, H, E, A> frequent_items_sketch<T, W, H, E, A>::deser
   if (!is_empty) {
     uint32_t n;
     std::memcpy(&n, ptr, sizeof(n));
+    if (static_cast<uint64_t>(n) * sizeof(W) > size) {
+      throw std::invalid_argument("Possible corruption: more items than bytes in Frequent Items image");
+    }
     while (lg_start_size < lg_cur_size &&
            static_cast<double>(1ULL << lg_start_size) * 0.75 < n) {  // reverse_purge_hash_map::LOAD_FACTOR
       ++lg_start_size;

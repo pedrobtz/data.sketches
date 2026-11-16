@@ -744,12 +744,24 @@ compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize(const v
   // compressed serializer compute 0 entry bits and write an image that it
   // then refused to read back.
   auto check_entries = [&data](const std::vector<uint64_t, A>& entries) {
+    if (data.theta > theta_constants::MAX_THETA) {
+      throw std::invalid_argument("Possible corruption: theta exceeds its maximum");
+    }
     uint64_t previous = 0;
     for (const uint64_t entry: entries) {
       if (entry == 0 || entry >= data.theta || (data.is_ordered && entry <= previous)) {
         throw std::invalid_argument("Possible corruption: compact sketch entry out of range or out of order");
       }
       previous = entry;
+    }
+    // An unordered image may still not repeat a hash: serializing sorts the
+    // entries, and the duplicates are then refused as out of order.
+    if (!data.is_ordered && entries.size() > 1) {
+      std::vector<uint64_t, A> sorted(entries);
+      std::sort(sorted.begin(), sorted.end());
+      if (std::adjacent_find(sorted.begin(), sorted.end()) != sorted.end()) {
+        throw std::invalid_argument("Possible corruption: duplicate entry in compact sketch");
+      }
     }
   };
   if (data.entry_bits == 64) { // versions 1 to 3

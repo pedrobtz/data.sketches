@@ -384,7 +384,12 @@ void tdigest<T, A>::merge(vector_centroid& buffer, W weight) {
 
 template<typename T, typename A>
 double tdigest<T, A>::weighted_average(double x1, double w1, double x2, double w2) {
-  return (x1 * w1 + x2 * w2) / (w1 + w2);
+  // (x1 * w1 + x2 * w2) / (w1 + w2) overflows when an x is near the largest
+  // double and its weight exceeds 1; take the fractions of the weights first.
+  const double total = w1 + w2;
+  const double avg = x1 * (w1 / total) + x2 * (w2 / total);
+  if (std::isfinite(avg)) return avg;
+  return x1 + (x2 - x1) * (w2 / total);  // same signs: the difference is finite
 }
 
 template<typename T, typename A>
@@ -521,6 +526,11 @@ tdigest<T, A> tdigest<T, A>::deserialize(std::istream& is, const A& allocator) {
     check_not_infinite(value, "buffered_value");
     check_in_range(value, min, max, "buffered value");
   }
+  // Each buffered value adds a weight of 1 to the total, which must not wrap.
+  {
+    uint64_t total = weight;
+    add_weight_checked(total, buffer.size());
+  }
   return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
 }
 
@@ -596,6 +606,11 @@ tdigest<T, A> tdigest<T, A>::deserialize(const void* bytes, size_t size, const A
     check_not_nan(value, "buffered_value");
     check_not_infinite(value, "buffered_value");
     check_in_range(value, min, max, "buffered value");
+  }
+  // Each buffered value adds a weight of 1 to the total, which must not wrap.
+  {
+    uint64_t total = weight;
+    add_weight_checked(total, buffer.size());
   }
   return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
 }

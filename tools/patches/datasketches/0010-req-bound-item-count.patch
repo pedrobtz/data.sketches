@@ -5,8 +5,8 @@ them, so a few bytes could demand gigabytes (out-of-memory, found by
 data.sketches tools/fuzz). Every item takes at least one byte of the image,
 so a larger count is rejected first.
 
---- a/req/include/req_compactor_impl.hpp	2026-11-16 21:03:57
-+++ b/req/include/req_compactor_impl.hpp	2026-11-16 21:03:57
+--- a/req/include/req_compactor_impl.hpp	2026-11-16 21:33:12
++++ b/req/include/req_compactor_impl.hpp	2026-11-16 21:33:12
 @@ -502,6 +502,12 @@
  -> std::pair<std::unique_ptr<T, items_deleter>, size_t> {
    const char* ptr = static_cast<const char*>(bytes);

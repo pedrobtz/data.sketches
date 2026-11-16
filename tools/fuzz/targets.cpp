@@ -135,6 +135,29 @@ fi_key_t fi_key(const fi_t& s) {
   return k;
 }
 
+// HLL's key is its compact serialization, with the coupons of a list or set
+// sorted: those are written in hash-table order, which depends on insertion
+// history, so the same coupons can come out in a different order. The mode
+// is the low two bits of byte 7 (LIST 0, SET 1, HLL 2); coupons start after
+// the 8- or 12-byte preamble. HLL arrays are compared byte for byte.
+bytes_t hll_key(const datasketches::hll_sketch& s) {
+  auto v = s.serialize_compact();
+  bytes_t b(v.begin(), v.end());
+  if (b.size() < 8) return b;
+  const uint8_t mode = b[7] & 0x03;
+  if (mode > 1) return b;
+  const size_t start = (mode == 0) ? 8 : 12;
+  std::vector<uint32_t> coupons;
+  for (size_t i = start; i + 4 <= b.size(); i += 4) {
+    uint32_t c;
+    std::memcpy(&c, b.data() + i, sizeof(c));
+    coupons.push_back(c);
+  }
+  std::sort(coupons.begin(), coupons.end());
+  for (size_t i = 0; i < coupons.size(); ++i) std::memcpy(b.data() + start + 4 * i, &coupons[i], sizeof(uint32_t));
+  return b;
+}
+
 // t-Digest's key is its serialization with one bit masked: an empty sketch's
 // reverse_merge flag (bit 2 of the flags byte, offset 5). It only says which
 // way the next internal merge runs, so it means nothing for an empty sketch,
@@ -186,7 +209,8 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
                  [](const hll_sketch& s) {
                    auto v = s.serialize_compact();
                    return bytes_t(v.begin(), v.end());
-                 });
+                 },
+                 hll_key);
       break;
     case 5:
       round_trip("cpc", data, size,
@@ -231,9 +255,21 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
                  plain<count_min_sketch<double>>);
       break;
     }
-    case 10:
+    case 10: {
+      // An empty or warmup-mode VarOpt image declares its capacity through k
+      // and the resize factor (X1 preallocates all of k), and any reader
+      // allocates it: like an empty Count-Min table, that is the format, not
+      // a bug. Skip k past 2^20 there, which would only measure the fuzzer's
+      // memory limit. Full mode is bounded by its items, checked by 0015.
+      if (size >= 9) {
+        const uint8_t prelongs = data[1] & 0x3f;
+        uint32_t k;
+        std::memcpy(&k, data + 5, sizeof(k));
+        if (prelongs != 4 && k > (1u << 20)) break;
+      }
       tagged<var_opt_sketch<double>, var_opt_sketch<std::string>>("varopt", data, size);
       break;
+    }
     case 11:
       tagged<ebpps_sketch<double>, ebpps_sketch<std::string>>("ebpps", data, size);
       break;

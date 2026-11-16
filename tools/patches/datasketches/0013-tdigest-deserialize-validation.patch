@@ -1,19 +1,53 @@
-Validate t-digest images before using their numbers.
+Validate t-digest images, and keep weighted means finite.
 
-Found by data.sketches tools/fuzz under UBSan:
+Found by data.sketches tools/fuzz under UBSan, the last on valid data too:
 
 - The reference-implementation (compat) formats store k and the centroid
   weights as floating point, converted to integers unchecked: NaN or an
   out-of-range value is undefined behavior. k must now be in [10, 65535] and
   a weight at least 1 and within 64 bits.
-- The weights must sum without wrapping the 64-bit total, and min <= max,
-  with every buffered value in [min, max] and every centroid mean within a
-  rounding margin of it. Otherwise compression overflows to infinity, then
-  NaN, and the sketch's serialization is refused on reading.
+- The weights, buffered values included, must sum without wrapping the
+  64-bit total, and min <= max, with every buffered value in [min, max] and
+  every centroid mean within a rounding margin of it.
+- centroid::add() and weighted_average() multiplied a mean by a weight before
+  dividing, and took differences of means of opposite sign: for values near
+  the largest double both overflow, so a t-digest of finite data reported an
+  Inf or NaN median and could not be read back after serializing. They now
+  divide first, and fall back to the form whose terms cannot overflow.
 
---- a/tdigest/include/tdigest_impl.hpp	2026-11-16 21:03:57
-+++ b/tdigest/include/tdigest_impl.hpp	2026-11-16 21:03:57
-@@ -49,7 +49,63 @@
+--- a/tdigest/include/tdigest.hpp	2026-11-16 21:33:12
++++ b/tdigest/include/tdigest.hpp	2026-11-16 21:33:12
+@@ -22,6 +22,7 @@
+ 
+ #include <cstddef>
+ #include <limits>
++#include <cmath>
+ #include <type_traits>
+ #include <vector>
+ 
+@@ -78,7 +79,18 @@
+     centroid(T value, W weight): mean_(value), weight_(weight) {}
+     void add(const centroid& other) {
+       weight_ += other.weight_;
+-      mean_ += (other.mean_ - mean_) * other.weight_ / weight_;
++      // Divide before multiplying, and when the means are so far apart that
++      // their difference overflows (opposite signs near the limit of T), use
++      // the convex combination, whose terms then have opposite signs. Either
++      // way the mean of finite values stays finite; the original form gave
++      // inf or NaN for values near the largest double.
++      const double frac = static_cast<double>(other.weight_) / static_cast<double>(weight_);
++      const T delta = other.mean_ - mean_;
++      if (std::isfinite(delta)) {
++        mean_ += delta * frac;
++      } else {
++        mean_ = mean_ * (1 - frac) + other.mean_ * frac;
++      }
+     }
+     T get_mean() const { return mean_; }
+     W get_weight() const { return weight_; }
+--- a/tdigest/include/tdigest_impl.hpp	2026-11-16 21:33:12
++++ b/tdigest/include/tdigest_impl.hpp	2026-11-16 21:33:12
+@@ -49,9 +49,65 @@
    static_assert(std::is_arithmetic<T>::value, "T must be an arithmetic type");
    if (value == 0) {
      throw std::invalid_argument(std::string(name) + " must not be zero");
@@ -59,9 +93,9 @@ Found by data.sketches tools/fuzz under UBSan:
 +  const double margin = (std::fabs(lo) + std::fabs(hi) + (hi - lo)) * 1e-6;
 +  if (mean < lo - margin || mean > hi + margin) {
 +    throw std::invalid_argument("Possible corruption: centroid mean outside [min, max]");
-+  }
-+}
-+
+   }
+ }
+ 
 +template<typename T>
 +inline void check_min_max(T min, T max) {
 +  if (min > max) {
@@ -72,12 +106,28 @@ Found by data.sketches tools/fuzz under UBSan:
 +inline uint64_t checked_compat_weight(double weight) {
 +  if (!(weight >= 1 && weight < 18446744073709551616.0)) {
 +    throw std::invalid_argument("Possible corruption: centroid weight must be at least 1 and fit 64 bits");
-   }
++  }
 +  return static_cast<uint64_t>(weight);
++}
++
+ template<typename T, typename A>
+ tdigest<T, A>::tdigest(uint16_t k, const A& allocator):
+ tdigest(false, k, std::numeric_limits<T>::infinity(), -std::numeric_limits<T>::infinity(), vector_centroid(allocator), 0, vector_t(allocator))
+@@ -328,7 +384,12 @@
+ 
+ template<typename T, typename A>
+ double tdigest<T, A>::weighted_average(double x1, double w1, double x2, double w2) {
+-  return (x1 * w1 + x2 * w2) / (w1 + w2);
++  // (x1 * w1 + x2 * w2) / (w1 + w2) overflows when an x is near the largest
++  // double and its weight exceeds 1; take the fractions of the weights first.
++  const double total = w1 + w2;
++  const double avg = x1 * (w1 / total) + x2 * (w2 / total);
++  if (std::isfinite(avg)) return avg;
++  return x1 + (x2 - x1) * (w2 / total);  // same signs: the difference is finite
  }
  
  template<typename T, typename A>
-@@ -446,6 +502,7 @@
+@@ -446,6 +507,7 @@
    check_not_infinite(min, "min");
    check_not_nan(max, "max");
    check_not_infinite(max, "max");
@@ -85,7 +135,7 @@ Found by data.sketches tools/fuzz under UBSan:
    vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
    if (num_centroids > 0) read(is, centroids.data(), num_centroids * sizeof(centroid));
    vector_t buffer(num_buffered, 0, allocator);
-@@ -454,13 +511,15 @@
+@@ -454,14 +516,21 @@
    for (const auto& c: centroids) {
      check_not_nan(c.get_mean(), "centroid mean");
      check_not_infinite(c.get_mean(), "centroid mean");
@@ -100,9 +150,15 @@ Found by data.sketches tools/fuzz under UBSan:
      check_not_infinite(value, "buffered_value");
 +    check_in_range(value, min, max, "buffered value");
    }
++  // Each buffered value adds a weight of 1 to the total, which must not wrap.
++  {
++    uint64_t total = weight;
++    add_weight_checked(total, buffer.size());
++  }
    return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
  }
-@@ -519,6 +578,7 @@
+ 
+@@ -519,6 +588,7 @@
    check_not_infinite(min, "min");
    check_not_nan(max, "max");
    check_not_infinite(max, "max");
@@ -110,7 +166,7 @@ Found by data.sketches tools/fuzz under UBSan:
    vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
    if (num_centroids > 0) ptr += copy_from_mem(ptr, centroids.data(), num_centroids * sizeof(centroid));
    vector_t buffer(num_buffered, 0, allocator);
-@@ -527,13 +587,15 @@
+@@ -527,14 +597,21 @@
    for (const auto& c: centroids) {
      check_not_nan(c.get_mean(), "centroid mean");
      check_not_infinite(c.get_mean(), "centroid mean");
@@ -125,9 +181,15 @@ Found by data.sketches tools/fuzz under UBSan:
      check_not_infinite(value, "buffered_value");
 +    check_in_range(value, min, max, "buffered value");
    }
++  // Each buffered value adds a weight of 1 to the total, which must not wrap.
++  {
++    uint64_t total = weight;
++    add_weight_checked(total, buffer.size());
++  }
    return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
  }
-@@ -555,7 +617,8 @@
+ 
+@@ -555,7 +632,8 @@
      check_not_infinite(min, "min");
      check_not_nan(max, "max");
      check_not_infinite(max, "max");
@@ -137,7 +199,7 @@ Found by data.sketches tools/fuzz under UBSan:
      const auto num_centroids = read_big_endian<uint32_t>(is);
      vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
      uint64_t total_weight = 0;
-@@ -568,9 +631,10 @@
+@@ -568,9 +646,10 @@
        const auto mean = read_big_endian<double>(is);
        check_not_nan(mean, "centroid mean");
        check_not_infinite(mean, "centroid mean");
@@ -150,7 +212,7 @@ Found by data.sketches tools/fuzz under UBSan:
      }
      return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
    }
-@@ -581,7 +645,8 @@
+@@ -581,7 +660,8 @@
    check_not_infinite(min, "min");
    check_not_nan(max, "max");
    check_not_infinite(max, "max");
@@ -160,7 +222,7 @@ Found by data.sketches tools/fuzz under UBSan:
    // reference implementation stores capacities of the array of centroids and the buffer as shorts
    // they can be derived from k in the constructor
    read<uint32_t>(is); // unused
-@@ -595,9 +660,10 @@
+@@ -595,9 +675,10 @@
      const auto mean = read_big_endian<float>(is);
      check_not_nan(mean, "centroid mean");
      check_not_infinite(mean, "centroid mean");
@@ -173,7 +235,7 @@ Found by data.sketches tools/fuzz under UBSan:
    }
    return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
  }
-@@ -626,9 +692,10 @@
+@@ -626,9 +707,10 @@
      check_not_infinite(min, "min");
      check_not_nan(max, "max");
      check_not_infinite(max, "max");
@@ -185,7 +247,7 @@ Found by data.sketches tools/fuzz under UBSan:
      uint32_t num_centroids;
      ptr += copy_from_mem(ptr, num_centroids);
      num_centroids = byteswap(num_centroids);
-@@ -646,8 +713,10 @@
+@@ -646,8 +728,10 @@
        check_not_infinite(weight, "centroid weight");
        check_not_nan(mean, "centroid mean");
        check_not_infinite(mean, "centroid mean");
@@ -198,7 +260,7 @@ Found by data.sketches tools/fuzz under UBSan:
      }
      return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
    }
-@@ -663,9 +732,10 @@
+@@ -663,9 +747,10 @@
    check_not_infinite(min, "min");
    check_not_nan(max, "max");
    check_not_infinite(max, "max");
@@ -210,7 +272,7 @@ Found by data.sketches tools/fuzz under UBSan:
    // reference implementation stores capacities of the array of centroids and the buffer as shorts
    // they can be derived from k in the constructor
    ptr += sizeof(uint32_t); // unused
-@@ -686,8 +756,10 @@
+@@ -686,8 +771,10 @@
      check_not_infinite(weight, "centroid weight");
      check_not_nan(mean, "centroid mean");
      check_not_infinite(mean, "centroid mean");

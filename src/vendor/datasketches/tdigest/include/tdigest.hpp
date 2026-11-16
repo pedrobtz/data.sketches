@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <cmath>
 #include <type_traits>
 #include <vector>
 
@@ -78,7 +79,18 @@ public:
     centroid(T value, W weight): mean_(value), weight_(weight) {}
     void add(const centroid& other) {
       weight_ += other.weight_;
-      mean_ += (other.mean_ - mean_) * other.weight_ / weight_;
+      // Divide before multiplying, and when the means are so far apart that
+      // their difference overflows (opposite signs near the limit of T), use
+      // the convex combination, whose terms then have opposite signs. Either
+      // way the mean of finite values stays finite; the original form gave
+      // inf or NaN for values near the largest double.
+      const double frac = static_cast<double>(other.weight_) / static_cast<double>(weight_);
+      const T delta = other.mean_ - mean_;
+      if (std::isfinite(delta)) {
+        mean_ += delta * frac;
+      } else {
+        mean_ = mean_ * (1 - frac) + other.mean_ * frac;
+      }
     }
     T get_mean() const { return mean_; }
     W get_weight() const { return weight_; }

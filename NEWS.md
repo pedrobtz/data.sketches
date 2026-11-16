@@ -17,7 +17,7 @@
   filter of zero capacity divided by zero on `$update()`), or an allocation
   of gigabytes from a few bytes. The families affected are `hll()`,
   `bloom_filter()`, `ebpps()`, `frequent_items()`, `req()`, `count_min()`,
-  `tdigest_double()` and `theta()`. Payloads written by valid sketches,
+  `tdigest_double()`, `theta()` and `varopt()`. Payloads written by valid sketches,
   including those from data.sketches 0.1.1, still load.
 
 * A small corrupt `req()` payload could request an 8 GiB allocation; 5.3.1
@@ -30,6 +30,11 @@
   when it is garbage-collected or R exits ("double free or corruption"). The
   library left the sketch's memory half-replaced after the failed
   allocation; both are patched locally (#35).
+
+* `tdigest_double()` no longer returns `Inf` or `NaN` quantiles for data
+  near the largest double, and such a sketch can again be read back after
+  `$serialize()`. The library multiplied means by weights before dividing,
+  which overflowed; it is patched locally to divide first.
 
 * `req(k =)` now honours widths of 256 and above. The library stored `k` in
   8 bits, so `k = 500` built a sketch of width 244 and `k = 256` or

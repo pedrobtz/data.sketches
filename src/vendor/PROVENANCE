@@ -28,6 +28,7 @@ Vendored dependency: Apache DataSketches C++, header-only
                  0012-count-min-check-size-first.patch
                  0013-tdigest-deserialize-validation.patch
                  0014-theta-validate-compact-entries.patch
+                 0015-varopt-deserialize-fixes.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -51,16 +52,21 @@ constructor's `bytes =`; patched, each raises datasketches_invalid_bytes:
         shift wrap, zero hash functions)
   0003  EBPPS: item count C validated (NaN or huge: unchecked conversion)
   0005  serde: no memcpy from a null pointer for an empty sample
-  0008  HLL: aux map and coupon set consistent with the image (shift counts,
-        misaligned reads, leak, double free, heap overflow on write, bad
-        downcast, HLL_4 tokens without aux entries)
+  0008  HLL: aux map, coupon list and coupon set consistent with the image
+        (shift counts, misaligned reads, leak, double free, heap overflow on
+        write, bad downcast, HLL_4 tokens without aux entries, invalid or
+        duplicate coupons; sets rebuilt by insertion)
   0009  Frequent Items: sizes bounded, map sized by the items, weights checked
   0010  REQ: item count checked against the bytes before allocating
   0011  EBPPS: header consistent; k no longer reserved up front
   0012  Count-Min: table size checked against the bytes before allocating
   0013  t-digest: compat k and weights converted checked; weights, min, max
-        and means consistent
-  0014  Theta: compact entries in (0, theta) and ordered
+        and means consistent; weighted means computed without overflow
+        (this one also affected valid data near the largest double)
+  0014  Theta: theta <= MAX_THETA, compact entries in (0, theta), ordered and
+        unique
+  0015  VarOpt: marks freed with their real size (sized-delete mismatch);
+        full-mode arrays checked against the bytes before allocating
 
 Failed allocations (found by alloc-failure.yaml, #35), each with a
 regression test in tools/vendor/tests/:

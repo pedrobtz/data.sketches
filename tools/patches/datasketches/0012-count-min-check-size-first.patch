@@ -6,8 +6,8 @@ gigabytes (out-of-memory, found by data.sketches tools/fuzz). It now runs
 first. An empty image still allocates the table it declares, as any reader
 must.
 
---- a/count/include/count_min_impl.hpp	2026-11-16 21:03:57
-+++ b/count/include/count_min_impl.hpp	2026-11-16 21:03:57
+--- a/count/include/count_min_impl.hpp	2026-11-16 21:33:12
++++ b/count/include/count_min_impl.hpp	2026-11-16 21:33:12
 @@ -409,11 +409,20 @@
      throw std::invalid_argument("Incompatible seed hashes: " + std::to_string(seed_hash) + ", "
                                  + std::to_string(compute_seed_hash(seed)));
