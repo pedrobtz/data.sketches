@@ -1,14 +1,16 @@
 # Regenerates tools/fuzz/corpus/: one seed per family and state, each the
 # family selector byte (the `case` in targets.cpp) followed by the bytes
 # `$serialize()` returns. Run from the repository root with the package
-# installed or loaded:
+# installed or loaded. Seeds ending in -v520 were written by DataSketches
+# 5.2.0 (data.sketches 0.1.1); they are kept, as old payloads users still
+# hold, and are not regenerated:
 #   Rscript tools/fuzz/make-corpus.R
 
 library(data.sketches)
 
 out <- "tools/fuzz/corpus"
 dir.create(out, showWarnings = FALSE, recursive = TRUE)
-unlink(list.files(out, full.names = TRUE))
+unlink(setdiff(list.files(out, full.names = TRUE), list.files(out, "-v520$", full.names = TRUE)))
 
 set.seed(20261116)
 nums <- c(rnorm(5000), runif(2000, -1e6, 1e6))

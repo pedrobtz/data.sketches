@@ -3,7 +3,7 @@
 //
 // Local replay without libFuzzer (Apple clang has none), from the repo root:
 //   clang++ -std=c++17 -g -O1 -fsanitize=address,undefined -DDS_FUZZ_MAIN \
-//     $(sed -n 's/^\t*-I\(datasketches\/[a-z]*\/include\).*/-Isrc\/\1/p' src/Makevars) \
+//     $(sed -n 's/^\t*-I\(vendor\/datasketches\/[a-z]*\/include\).*/-Isrc\/\1/p' src/Makevars) \
 //     tools/fuzz/harness.cpp tools/fuzz/targets.cpp -o fuzz-replay
 //   ./fuzz-replay tools/fuzz/corpus/*
 

@@ -804,10 +804,12 @@ check_varopt_weight <- function(weight, n, call = rlang::caller_env()) {
       !(length(weight) %in% c(1L, n)) ||
       anyNA(weight) ||
       any(!is.finite(weight)) ||
-      any(weight < 0)
+      any(weight <= 0)
   ) {
+    # Positive, not non-negative: DataSketches 5.3.0 rejects a zero weight,
+    # as datasketches-java and the VarOpt paper do (upstream #495).
     abort_invalid(
-      "`weight` must be a non-negative, finite number, or a vector of such values matching the length of `x`.",
+      "`weight` must be a positive, finite number, or a vector of such values matching the length of `x`.",
       "datasketches_invalid_weight",
       call = call
     )

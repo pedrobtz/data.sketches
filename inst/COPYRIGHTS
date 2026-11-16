@@ -8,17 +8,22 @@ license and copyright details.
 Bundled third-party code
 ========================
 
-src/datasketches/
------------------
+src/vendor/datasketches/
+------------------------
 
-This directory vendors header-only sources from the Apache DataSketches C++
-library, version 5.2.0 (https://github.com/apache/datasketches-cpp), refreshed
-via tools/update-datasketches-cpp.R.
+This directory vendors the header-only sources of the Apache DataSketches C++
+library, version 5.3.1 (https://github.com/apache/datasketches-cpp, tag 5.3.1),
+from the Apache source release apache-datasketches-cpp-5.3.1-src.zip, with two
+local changes, both under the Apache License, Version 2.0, in
+tools/patches/datasketches/: 0001-hll-validate-lg-k.patch and
+0002-bloom-require-standard-preamble.patch, which add input validation to the
+HLL and Bloom filter deserializers. src/vendor/PROVENANCE records the archive,
+its digests, the patches and the update procedure (tools/vendor/fetch).
 
-  Copyright 2025 The Apache Software Foundation
+  Copyright 2019-2026 The Apache Software Foundation
   Copyright 2015-2018 Yahoo Inc.
   Copyright 2019-2020 Verizon Media
-  Copyright 2021- Yahoo Inc.
+  Copyright 2021-2025 Yahoo Inc.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not
 use these files except in compliance with the License. You may obtain a copy
@@ -26,17 +31,17 @@ of the License at
 
   https://www.apache.org/licenses/LICENSE-2.0
 
-The original license and notice are preserved at src/datasketches/LICENSE and
-src/datasketches/NOTICE. The Apache License, Version 2.0 and the package's own
-MIT license are separate and apply to their respective files; the
-MIT license covers only the data.sketches R and C++ bridge code authored for
-this package, not the vendored Apache DataSketches sources.
+The original license and notice are preserved at src/vendor/datasketches/LICENSE
+and src/vendor/datasketches/NOTICE. The Apache License, Version 2.0 and the
+package's own MIT license are separate and apply to their respective files;
+the MIT license covers only the data.sketches R and C++ bridge code authored
+for this package, not the vendored Apache DataSketches sources.
 
 Bundled files with separate authorship notices
 ==============================================
 
-src/datasketches/common/include/xxhash64.h
-------------------------------------------
+src/vendor/datasketches/common/include/xxhash64.h
+-------------------------------------------------
 
 This file is bundled as part of Apache DataSketches C++.
 
@@ -47,8 +52,20 @@ https://github.com/stbrumme/xxhash/blob/master/xxhash64.h and states that this
 component is licensed under the MIT license. The header notes that the
 implementation is based on Yann Collet's XXHash descriptions.
 
-src/datasketches/common/include/MurmurHash3.h
----------------------------------------------
+src/vendor/datasketches/common/include/fdlibm_log.hpp
+-----------------------------------------------------
+
+This file is bundled as part of Apache DataSketches C++. It is adapted from
+__ieee754_log in FDLIBM 5.3:
+
+  Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
+
+  Developed at SunSoft, a Sun Microsystems, Inc. business.
+  Permission to use, copy, modify, and distribute this software is freely
+  granted, provided that this notice is preserved.
+
+src/vendor/datasketches/common/include/MurmurHash3.h
+----------------------------------------------------
 
 This file is bundled as part of Apache DataSketches C++ and is minimally
 modified from Austin Appleby's MurmurHash3 code.
@@ -56,8 +73,8 @@ modified from Austin Appleby's MurmurHash3 code.
 The header states that MurmurHash3 was written by Austin Appleby and placed in
 the public domain, and that the author disclaims copyright to this source code.
 
-src/datasketches/common/include/ceiling_power_of_2.hpp
------------------------------------------------------
+src/vendor/datasketches/common/include/ceiling_power_of_2.hpp
+-------------------------------------------------------------
 
 This file is bundled as part of Apache DataSketches C++. It includes code taken
 from Sean Eron Anderson's Bit Twiddling Hacks page,

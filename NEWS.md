@@ -1,5 +1,41 @@
 # data.sketches (development version)
 
+## Security
+
+* The bundled Apache DataSketches C++ library is updated from 5.2.0 to 5.3.1,
+  which fixes out-of-bounds reads and writes when deserializing corrupt KLL,
+  REQ, HLL, CPC, Count-Min, Theta and VarOpt payloads (CVE-2026-103501,
+  CVE-2026-103513, CVE-2026-103634, CVE-2026-103635, CVE-2026-103636,
+  CVE-2026-123274, CVE-2026-123338). Every `bytes =` constructor was
+  affected. If you rebuild sketches from bytes you did not produce, upgrade.
+
+* Two deserialization bugs that remain in 5.3.1 are patched locally: an HLL
+  payload with an out-of-range `lg_k` no longer reaches undefined behavior,
+  and a corrupt Bloom filter payload no longer reads past its buffer. Both
+  now raise `datasketches_invalid_bytes` (#33).
+
+* A small corrupt `req()` payload could request an 8 GiB allocation; 5.3.1
+  rejects it (#33).
+
+## Bug fixes
+
+* `req(k =)` now honours widths of 256 and above. The library stored `k` in
+  8 bits, so `k = 500` built a sketch of width 244 and `k = 256` or
+  `k = 1024` one of width 4, with correspondingly worse accuracy.
+
+## Breaking changes
+
+* `varopt()` and `$update()` on a VarOpt sketch reject a `weight` of zero,
+  with `datasketches_invalid_weight`. The library now requires positive
+  weights, as datasketches-java and the VarOpt paper do; zero-weight items
+  never contributed to an estimate.
+
+* Results from the updated library can differ slightly from 0.1.1: t-Digest
+  ranks and quantiles in the tails, and HLL union estimates, which no longer
+  depend on merge order. Serialized HLL sketches and single-item Theta
+  sketches now match datasketches-java byte for byte; payloads written by
+  0.1.1 still load.
+
 # data.sketches 0.1.1
 
 ## Bug fixes

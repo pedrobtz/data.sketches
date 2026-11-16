@@ -1,0 +1,57 @@
+# src/vendor/datasketches is Apache DataSketches C++ plus exactly the patches
+# in tools/patches/datasketches/, and is never edited in place.
+# tools/vendor/verify re-derives it from the pinned Apache release and fails
+# on any difference; the PR guard requires a change under src/vendor to come
+# through tools/vendor/fetch, with the manifest (or a patch) and the
+# checksums changed alongside.
+on:
+  pull_request:
+  schedule:
+    - cron: "41 2 * * 6"
+  workflow_dispatch:
+
+name: vendor
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  vendor:
+    uses: pedrobtz/r-actions/.github/workflows/vendor.yml@v1
+    with:
+      must-update: |
+        tools/vendor/manifest.tsv | tools/patches/
+        tools/vendor/checksums.sha256
+
+  # R CMD check NOTEs a shared object that references stdout/stderr, printf,
+  # abort, exit, assert or the C RNG, and CRAN rejects it; the vendored
+  # headers count, since the bridge instantiates them. Checked on a plain
+  # R CMD INSTALL build, which compiles with R's -DNDEBUG as CRAN does.
+  # ungated: one Ubuntu install, and any change to src/ or the vendor tree can
+  # add such a symbol.
+  symbols:
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+      || !(contains(github.event.pull_request.labels.*.name, 'ci:docs')
+        || contains(github.event.pull_request.labels.*.name, 'ci:minimal')
+        || contains(github.event.pull_request.labels.*.name, 'skip-ci:vendor'))
+    runs-on: ubuntu-latest
+    name: no console or exit symbols
+    steps:
+      - uses: actions/checkout@v4
+      - uses: r-lib/actions/setup-r@v2
+        with:
+          use-public-rspm: true
+      - uses: r-lib/actions/setup-r-dependencies@v2
+        with:
+          dependencies: '"hard"'
+      - name: Install and inspect the shared object
+        run: |
+          mkdir -p "$RUNNER_TEMP/lib"
+          R CMD INSTALL --no-test-load -l "$RUNNER_TEMP/lib" .
+          tools/check-symbols "$RUNNER_TEMP/lib/data.sketches/libs/data.sketches.so"

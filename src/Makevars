@@ -1,18 +1,18 @@
 CXX_STD = CXX17
 
-# Vendored Apache DataSketches C++ headers live under src/datasketches/.
+# Vendored Apache DataSketches C++ headers live under src/vendor/datasketches/ (see src/vendor/PROVENANCE).
 PKG_CPPFLAGS = \
-	-Idatasketches/common/include \
-	-Idatasketches/count/include \
-	-Idatasketches/cpc/include \
-	-Idatasketches/density/include \
-	-Idatasketches/fi/include \
-	-Idatasketches/filters/include \
-	-Idatasketches/hll/include \
-	-Idatasketches/kll/include \
-	-Idatasketches/quantiles/include \
-	-Idatasketches/req/include \
-	-Idatasketches/sampling/include \
-	-Idatasketches/tdigest/include \
-	-Idatasketches/theta/include \
-	-Idatasketches/tuple/include
+	-Ivendor/datasketches/common/include \
+	-Ivendor/datasketches/count/include \
+	-Ivendor/datasketches/cpc/include \
+	-Ivendor/datasketches/density/include \
+	-Ivendor/datasketches/fi/include \
+	-Ivendor/datasketches/filters/include \
+	-Ivendor/datasketches/hll/include \
+	-Ivendor/datasketches/kll/include \
+	-Ivendor/datasketches/quantiles/include \
+	-Ivendor/datasketches/req/include \
+	-Ivendor/datasketches/sampling/include \
+	-Ivendor/datasketches/tdigest/include \
+	-Ivendor/datasketches/theta/include \
+	-Ivendor/datasketches/tuple/include
