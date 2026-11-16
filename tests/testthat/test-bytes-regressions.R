@@ -1,6 +1,7 @@
 # Payloads that crashed or misbehaved in the vendored deserializers, found by
-# tools/fuzz (issue #33). Each file is the fuzz input: one family-selector byte
-# (the `case` in tools/fuzz/targets.cpp) followed by the `bytes` R hands over.
+# tools/fuzz (issues #33 and #35). Each file is the fuzz input as hex (`xxd -p`;
+# R CMD check reports some raw payloads as executables): one family-selector
+# byte (the `case` in tools/fuzz/targets.cpp), then the `bytes` R hands over.
 # Every one must be rejected as a classed condition, never accepted.
 #
 # Without sanitizers an out-of-bounds read can still end in an exception, so
@@ -25,11 +26,15 @@ test_that("payloads that crashed the deserializers raise datasketches_invalid_by
     "11" = ebpps,
     "12" = bloom_filter
   )
-  files <- list.files(test_path("fixtures", "bytes"), full.names = TRUE)
+  read_hex <- function(path) {
+    hex <- paste(readLines(path), collapse = "")
+    as.raw(strtoi(substring(hex, seq(1, nchar(hex), 2), seq(2, nchar(hex), 2)), 16L))
+  }
+  files <- list.files(test_path("fixtures", "bytes"), "[.]hex$", full.names = TRUE)
   expect_gte(length(files), 10L)
 
   for (f in files) {
-    raw <- readBin(f, "raw", file.size(f))
+    raw <- read_hex(f)
     family <- sprintf("%02d", as.integer(raw[[1L]]))
     ctor <- constructors[[family]]
     expect_false(is.null(ctor), info = basename(f))

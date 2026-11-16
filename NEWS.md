@@ -9,10 +9,13 @@
   CVE-2026-123274, CVE-2026-123338). Every `bytes =` constructor was
   affected. If you rebuild sketches from bytes you did not produce, upgrade.
 
-* Two deserialization bugs that remain in 5.3.1 are patched locally: an HLL
-  payload with an out-of-range `lg_k` no longer reaches undefined behavior,
-  and a corrupt Bloom filter payload no longer reads past its buffer. Both
-  now raise `datasketches_invalid_bytes` (#33).
+* Bugs that remain in 5.3.1 are patched locally: an HLL payload with an
+  out-of-range `lg_k` no longer reaches undefined behavior, a corrupt Bloom
+  filter payload no longer reads past its buffer, and an EBPPS payload whose
+  item count is NaN or huge no longer reaches an unchecked conversion and
+  allocation. All three now raise `datasketches_invalid_bytes` (#33).
+  Serializing an EBPPS sketch with no full items no longer passes a null
+  pointer to `memcpy()`.
 
 * A small corrupt `req()` payload could request an 8 GiB allocation; 5.3.1
   rejects it (#33).

@@ -109,7 +109,9 @@ struct serde<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> {
   size_t serialize(void* ptr, size_t capacity, const T* items, unsigned num) const {
     const size_t bytes_written = sizeof(T) * num;
     check_memory_size(bytes_written, capacity);
-    memcpy(ptr, items, bytes_written);
+    // memcpy with a null pointer is undefined even for zero bytes, and an
+    // empty sample passes items == nullptr (as copy_to_mem guards, #548).
+    if (bytes_written > 0) memcpy(ptr, items, bytes_written);
     return bytes_written;
   }
 
@@ -117,7 +119,7 @@ struct serde<T, typename std::enable_if<std::is_arithmetic<T>::value>::type> {
   size_t deserialize(const void* ptr, size_t capacity, T* items, unsigned num) const {
     const size_t bytes_read = sizeof(T) * num;
     check_memory_size(bytes_read, capacity);
-    memcpy(items, ptr, bytes_read);
+    if (bytes_read > 0) memcpy(items, ptr, bytes_read);
     return bytes_read;
   }
 
