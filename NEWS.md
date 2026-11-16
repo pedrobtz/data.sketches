@@ -47,6 +47,11 @@
   the same check; `bloom_filter_suggest_num_filter_bits()` still reports what
   a size needs, even past the limit (#32).
 
+* `bloom_filter_suggest_num_hashes()` suggests at most 65535 hash functions,
+  the most a filter stores. With more than about 94,500 bits per item the
+  library's count overflowed its 16-bit result, which is undefined behaviour;
+  it is patched locally to clamp.
+
 * Every native constructor's error is now classed: one the library raises
   that R's checks did not anticipate arrives as `datasketches_invalid_args`,
   with the library's message as its parent, so `tryCatch(datasketches_error =

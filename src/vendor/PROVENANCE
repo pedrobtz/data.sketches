@@ -31,6 +31,7 @@ Vendored dependency: Apache DataSketches C++, header-only
                  0015-varopt-deserialize-fixes.patch
                  0016-tuple-validate-compact-entries.patch
                  0017-kll-item-count-invariants.patch
+                 0018-bloom-suggest-num-hashes-clamp.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -86,6 +87,12 @@ Compiler diagnostic, not a bug:
   0006  Count-Min: serialize() appends instead of writing through data(),
         which gcc's UBSan build reported as out of bounds, a WARNING under
         R CMD check
+
+Out-of-range conversion on valid arguments (found by sanitizers CI):
+
+  0018  Bloom: suggest_num_hashes() clamped to the 65535 hash functions a
+        filter stores (many bits per item overflowed uint16_t); its
+        too-many-bits error names the real limit
 
 Updating: change the tag, commit, version_string, archive and archive_sha256
 columns of tools/vendor/manifest.tsv (check the archive against the .sha512

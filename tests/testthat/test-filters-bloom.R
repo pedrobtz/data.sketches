@@ -478,6 +478,16 @@ test_that("suggest_num_hashes() refuses a num_bits past the limit, classed", {
   )
 })
 
+test_that("suggest_num_hashes() tops out at the 65535 hashes a filter stores", {
+  # ceil(bits / items * ln 2) passes 65535 between 94547 and 94548 bits per
+  # item; the library converted it to uint16_t unchecked (patch 0018).
+  expect_identical(bloom_filter_suggest_num_hashes(1, 94546), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, 94548), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, 1e9), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, bloom_max_bits()), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(2, 94546), 32768L)
+})
+
 test_that("create_native() classes what the library rejects, and passes ours through", {
   err <- tryCatch(create_native(stop("native says no")), error = identity)
   expect_s3_class(err, "datasketches_invalid_args")

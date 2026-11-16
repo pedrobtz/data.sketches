@@ -34,6 +34,7 @@ tools/patches/datasketches/:
   0015-varopt-deserialize-fixes.patch       VarOpt input validation, deleter
   0016-tuple-validate-compact-entries.patch Array of Doubles input validation
   0017-kll-item-count-invariants.patch      KLL input validation
+  0018-bloom-suggest-num-hashes-clamp.patch Bloom filter hash-count range
 
 src/vendor/PROVENANCE says what each fixes and records the archive, its
 digests and the update procedure (tools/vendor/fetch).

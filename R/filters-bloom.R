@@ -460,9 +460,9 @@ bloom_filter <- function(
 #' @return A single number: `bloom_filter_suggest_num_filter_bits()` returns
 #'   the suggested `num_bits` (a double, which may exceed
 #'   `.Machine$integer.max`); `bloom_filter_suggest_num_hashes()` returns the
-#'   suggested `num_hashes` (an integer). The suggested `num_bits` is the
-#'   library's sizing rule and is not capped: above the maximum filter size,
-#'   `bloom_filter()` refuses it.
+#'   suggested `num_hashes` (an integer, at most 65535). The suggested
+#'   `num_bits` is the library's sizing rule and is not capped: above the
+#'   maximum filter size, `bloom_filter()` refuses it.
 #'
 #' @examples
 #' num_bits <- bloom_filter_suggest_num_filter_bits(1000, 0.01)

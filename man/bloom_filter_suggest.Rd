@@ -23,9 +23,9 @@ up to the library's maximum of 17,179,868,864 (2 GiB).}
 A single number: \code{bloom_filter_suggest_num_filter_bits()} returns
 the suggested \code{num_bits} (a double, which may exceed
 \code{.Machine$integer.max}); \code{bloom_filter_suggest_num_hashes()} returns the
-suggested \code{num_hashes} (an integer). The suggested \code{num_bits} is the
-library's sizing rule and is not capped: above the maximum filter size,
-\code{bloom_filter()} refuses it.
+suggested \code{num_hashes} (an integer, at most 65535). The suggested
+\code{num_bits} is the library's sizing rule and is not capped: above the
+maximum filter size, \code{bloom_filter()} refuses it.
 }
 \description{
 Helpers that translate a target accuracy into Bloom filter constructor

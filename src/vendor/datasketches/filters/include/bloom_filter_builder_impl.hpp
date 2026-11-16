@@ -21,6 +21,9 @@
 #define _BLOOM_FILTER_BUILDER_IMPL_HPP_
 
 #include <cmath>
+#include <string>
+#include <limits>
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -43,9 +46,15 @@ uint16_t bloom_filter_alloc<A>::builder::suggest_num_hashes(uint64_t max_distinc
   if (num_filter_bits == 0) {
     throw std::invalid_argument("number of bits in the filter must be strictly positive");
   } else if (num_filter_bits > bloom_filter_alloc<A>::MAX_FILTER_SIZE_BITS) {
-    throw std::invalid_argument("number of bits in the filter must be less than 2^63");
+    throw std::invalid_argument("number of bits in the filter must be at most "
+        + std::to_string(bloom_filter_alloc<A>::MAX_FILTER_SIZE_BITS));
   }
-  return static_cast<uint16_t>(std::ceil(static_cast<double>(num_filter_bits) / max_distinct_items * log(2.0)));
+  // The ideal count, bits per item times ln 2, exceeds the uint16_t the
+  // filter stores when there are many bits per item (1e10 bits for one
+  // item asks for about 6.9e9 hashes), and converting it unchecked is
+  // undefined; suggest the most a filter can use instead.
+  const double hashes = std::ceil(static_cast<double>(num_filter_bits) / max_distinct_items * log(2.0));
+  return static_cast<uint16_t>(std::min(hashes, static_cast<double>(std::numeric_limits<uint16_t>::max())));
 }
 
 template<typename A>

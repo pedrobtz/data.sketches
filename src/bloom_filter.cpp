@@ -244,7 +244,8 @@ cpp11::sexp bf_deserialize_cpp(cpp11::raws bytes) {
 // private, so it is computed from its definition in bloom_filter.hpp,
 // (INT32_MAX - MAX_HEADER_SIZE_BYTES) * sizeof(uint64_t) with a 32-byte
 // header, and confirmed against the library, which enforces it in
-// suggest_num_hashes(): the limit is accepted and one bit more is not. If an
+// suggest_num_hashes(): the limit is accepted and one bit more is not (with
+// as many items as bits, so the suggested count itself stays small). If an
 // update changes the limit, this fails loudly instead of drifting.
 [[cpp11::register]]
 double bf_max_filter_bits_cpp() {
@@ -252,12 +253,12 @@ double bf_max_filter_bits_cpp() {
     const uint64_t candidate = (static_cast<uint64_t>(INT32_MAX) - 32) * sizeof(uint64_t);
     bool accepted = true, rejected = false;
     try {
-      datasketches::bloom_filter::builder::suggest_num_hashes(1, candidate);
+      datasketches::bloom_filter::builder::suggest_num_hashes(candidate, candidate);
     } catch (const std::invalid_argument&) {
       accepted = false;
     }
     try {
-      datasketches::bloom_filter::builder::suggest_num_hashes(1, candidate + 1);
+      datasketches::bloom_filter::builder::suggest_num_hashes(candidate, candidate + 1);
     } catch (const std::invalid_argument&) {
       rejected = true;
     }
