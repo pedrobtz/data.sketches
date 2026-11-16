@@ -126,7 +126,7 @@ array_of_doubles_sketch_generator <- R6Class(
         } else {
           check_num_values(num_values)
         }
-        private$ptr <- aod_create_cpp(lg_k, num_values, seed)
+        private$ptr <- create_native(aod_create_cpp(lg_k, num_values, seed))
         private$lg_k_hint <- lg_k
         if (!is.null(x)) {
           self$update(x, values)

@@ -57,7 +57,7 @@ frequent_items_sketch_generator <- R6Class(
         } else {
           check_lg_start_map_size(lg_start_map_size, lg_max_map_size)
         }
-        private$ptr <- fi_create_cpp(lg_max_map_size, lg_start_map_size)
+        private$ptr <- create_native(fi_create_cpp(lg_max_map_size, lg_start_map_size))
         if (!is.null(x)) {
           self$update(x, weight)
         } else if (!is.null(weight)) {

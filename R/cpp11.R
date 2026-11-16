@@ -180,6 +180,10 @@ bf_deserialize_cpp <- function(bytes) {
   .Call(`_data_sketches_bf_deserialize_cpp`, bytes)
 }
 
+bf_max_filter_bits_cpp <- function() {
+  .Call(`_data_sketches_bf_max_filter_bits_cpp`)
+}
+
 bf_suggest_num_filter_bits_cpp <- function(max_items, fpp) {
   .Call(`_data_sketches_bf_suggest_num_filter_bits_cpp`, max_items, fpp)
 }

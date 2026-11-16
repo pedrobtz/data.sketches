@@ -68,7 +68,7 @@ count_min_sketch_generator <- R6Class(
         } else {
           check_num_buckets(num_buckets, num_hashes)
         }
-        private$ptr <- cm_create_cpp(num_hashes, num_buckets, seed)
+        private$ptr <- create_native(cm_create_cpp(num_hashes, num_buckets, seed))
         if (!is.null(x)) {
           self$update(x, weight)
         } else if (!is.null(weight)) {

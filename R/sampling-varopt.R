@@ -65,7 +65,7 @@ varopt_sketch_generator <- R6Class(
           check_varopt_type(type)
         }
         k <- if (is.null(k)) 256L else check_varopt_k(k)
-        private$ptr <- vo_create_cpp(k, type == "character")
+        private$ptr <- create_native(vo_create_cpp(k, type == "character"))
         if (!is.null(x)) {
           self$update(x, weight)
         } else if (!is.null(weight)) {

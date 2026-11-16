@@ -37,6 +37,21 @@
   `$serialize()`. The library multiplied means by weights before dividing,
   which overflowed; it is patched locally to divide first.
 
+* `bloom_filter()` validates sizes against the library's own maximum,
+  17,179,868,864 bits (2 GiB): `num_bits` above it raises
+  `datasketches_invalid_num_bits`, and `max_items` whose filter at `fpp` would
+  exceed it raises `datasketches_invalid_max_items`, naming the limit and what
+  to change. Such sizes used to pass R's check (up to 2^53) and fail in the
+  library with an unclassed error, for `num_bits` with the wrong limit
+  ("less than 2^63") in its message. `bloom_filter_suggest_num_hashes()` gets
+  the same check; `bloom_filter_suggest_num_filter_bits()` still reports what
+  a size needs, even past the limit (#32).
+
+* Every native constructor's error is now classed: one the library raises
+  that R's checks did not anticipate arrives as `datasketches_invalid_args`,
+  with the library's message as its parent, so `tryCatch(datasketches_error =
+  )` catches every failure as 0.1.1 promised (#32).
+
 * `req(k =)` now honours widths of 256 and above. The library stored `k` in
   8 bits, so `k = 500` built a sketch of width 244 and `k = 256` or
   `k = 1024` one of width 4, with correspondingly worse accuracy.

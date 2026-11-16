@@ -330,6 +330,13 @@ extern "C" SEXP _data_sketches_bf_deserialize_cpp(SEXP bytes) {
   END_CPP11
 }
 // bloom_filter.cpp
+double bf_max_filter_bits_cpp();
+extern "C" SEXP _data_sketches_bf_max_filter_bits_cpp() {
+  BEGIN_CPP11
+    return cpp11::as_sexp(bf_max_filter_bits_cpp());
+  END_CPP11
+}
+// bloom_filter.cpp
 double bf_suggest_num_filter_bits_cpp(double max_items, double fpp);
 extern "C" SEXP _data_sketches_bf_suggest_num_filter_bits_cpp(SEXP max_items, SEXP fpp) {
   BEGIN_CPP11
@@ -1788,6 +1795,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_data_sketches_bf_is_compatible_cpp",               (DL_FUNC) &_data_sketches_bf_is_compatible_cpp,               2},
     {"_data_sketches_bf_is_empty_cpp",                    (DL_FUNC) &_data_sketches_bf_is_empty_cpp,                    1},
     {"_data_sketches_bf_is_valid_cpp",                    (DL_FUNC) &_data_sketches_bf_is_valid_cpp,                    1},
+    {"_data_sketches_bf_max_filter_bits_cpp",             (DL_FUNC) &_data_sketches_bf_max_filter_bits_cpp,             0},
     {"_data_sketches_bf_query_and_update_doubles_cpp",    (DL_FUNC) &_data_sketches_bf_query_and_update_doubles_cpp,    2},
     {"_data_sketches_bf_query_and_update_strings_cpp",    (DL_FUNC) &_data_sketches_bf_query_and_update_strings_cpp,    2},
     {"_data_sketches_bf_query_doubles_cpp",               (DL_FUNC) &_data_sketches_bf_query_doubles_cpp,               2},

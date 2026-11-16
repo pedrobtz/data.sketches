@@ -42,7 +42,7 @@ kll_floats_sketch_generator <- R6Class(
         private$ptr <- deserialize_native(kll_floats_deserialize_cpp(bytes))
       } else {
         k <- if (is.null(k)) 200L else check_k(k)
-        private$ptr <- kll_floats_create_cpp(k)
+        private$ptr <- create_native(kll_floats_create_cpp(k))
         if (!is.null(x)) {
           self$update(x)
         }
