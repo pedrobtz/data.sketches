@@ -20,3 +20,5 @@
 ^\.superpowers$
 ^\.worktrees$
 ^AGENTS\.md$
+^tools/fuzz$
+^tools/alloc-exercise\.R$

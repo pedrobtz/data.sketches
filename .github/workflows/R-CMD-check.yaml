@@ -2,40 +2,48 @@
 # reusable workflow in pedrobtz/r-actions. That workflow carries the reasoning;
 # this file carries only what is specific to this package.
 #
-# The containers are what this adds. The package compiles the vendored Apache
-# DataSketches C++ headers, and CRAN's two r-devel Linux flavors build them
-# with clang 23 and GCC 16, which no GitHub runner carries.
+# The containers matter here: the package compiles the vendored Apache
+# DataSketches C++ headers, and CRAN's r-devel Linux flavors build them with
+# clang 23 and GCC 16, which no GitHub runner carries.
 #
-# `runners` restores the ubuntu-latest (devel) row that the r-actions default
-# drops, so every leg of the previous hand-rolled matrix still runs under the
-# same name. The containers are R-devel on Linux already, but this migration
-# keeps everything the old workflow checked.
-#
-# Dropped from the old matrix: build_args --compact-vignettes=gs+qpdf, which
-# came with the r-lib template. There are no vignettes to compact.
-#
-# Check names now carry the caller's job id as a prefix, e.g.
-# "R-CMD-check / macos-latest (release)". The main ruleset's required status
-# checks must name them that way.
+# `runners` adds the Windows R-devel row (CRAN's Windows r-devel flavor, which
+# the shared default does not carry) and keeps the Ubuntu R-devel row as
+# insurance against a stale container image.
 on:
-  # No `push:`: a pull request already checks its merge with main,
-  # and the schedule checks main (r-actions README, "Pushes to main").
+  # No `push:`. A pull request already checks its merge with main, and the
+  # schedule checks main (r-actions README, "Pushes to main").
+  # `labeled`/`unlabeled` so that adding or removing a CI label (`full-ci`,
+  # `ci:minimal`, `skip-ci:<workflow>`) reruns it.
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  # The full set runs weekly and on demand:
+  # `gh workflow run R-CMD-check.yaml --ref main`.
   schedule:
     - cron: "46 2 * * 6"
   workflow_dispatch:
-  pull_request:
 
-name: R-CMD-check.yaml
+name: R-CMD-check
 
 permissions: read-all
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
 
 jobs:
   R-CMD-check:
     uses: pedrobtz/r-actions/.github/workflows/r-cmd-check.yml@v1
     with:
+      # Quick on pull requests. Full on the weekly schedule, on a manual
+      # dispatch, and on a pull request labelled `full-ci`.
+      profile: auto
+      # testthat is the only Suggests; tests/testthat.R skips without it.
+      nosuggests: true
+      nold: true
       runners: >-
         [{"os": "macos-latest", "r": "release"},
          {"os": "windows-latest", "r": "release"},
+         {"os": "windows-latest", "r": "devel"},
          {"os": "ubuntu-latest", "r": "devel", "http-user-agent": "release"},
          {"os": "ubuntu-latest", "r": "release"},
          {"os": "ubuntu-latest", "r": "oldrel-1"}]

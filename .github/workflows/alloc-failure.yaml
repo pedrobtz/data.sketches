@@ -1,0 +1,39 @@
+# Fails each allocation in turn, R's included, while tools/alloc-exercise.R
+# runs, and requires every failure to surface as an R error rather than a
+# crash or a wrong answer. One job per section of the workload; the sweep
+# restarts R once per allocation, so this runs on a schedule and on a
+# `full-ci` pull request only.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    - cron: "36 2 * * 6"
+  workflow_dispatch:
+
+name: alloc-failure
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  alloc-failure:
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    strategy:
+      fail-fast: false
+      matrix:
+        section: [quantiles, cardinality, other]
+    uses: pedrobtz/r-actions/.github/workflows/alloc-failure.yml@v1
+    with:
+      run: DS_ALLOC_EXERCISE=${{ matrix.section }} R_ENABLE_JIT=0 Rscript tools/alloc-exercise.R
+      baseline-run: R_ENABLE_JIT=0 Rscript -e "library(data.sketches)"
+      # R's own allocation error, or cpp11's rendering of std::bad_alloc.
+      expect-pattern: "[Cc]annot allocate|memory exhausted|bad_alloc|datasketches_error"
+      target-pattern: "bad_alloc"
+      ignore-crash-pattern: "^ 1: (grepl?|sub|gsub|strsplit|gzfile)\\("
+      max-allocations: 3000

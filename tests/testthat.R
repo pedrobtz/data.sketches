@@ -6,7 +6,10 @@
 # * https://r-pkgs.org/testing-design.html#sec-tests-files-overview
 # * https://testthat.r-lib.org/articles/special-files.html
 
-library(testthat)
-library(data.sketches)
+# testthat is in Suggests; the nosuggests check runs without it.
+if (requireNamespace("testthat", quietly = TRUE)) {
+  library(testthat)
+  library(data.sketches)
 
-test_check("data.sketches")
+  test_check("data.sketches")
+}

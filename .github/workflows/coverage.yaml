@@ -29,7 +29,7 @@ jobs:
     # Pinned to a commit, not to @v1. This is the one job that runs with a
     # repository write token, and a tag can be moved. Update deliberately,
     # with the tag it corresponds to.
-    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@59c917ddee2cd0191f8f015016c4c76c4f2a8c87 # v1.18.0
+    uses: pedrobtz/r-actions/.github/workflows/coverage.yml@d53e033699ab3fb2fa48a156156e2f142ff68fbc # v1 (v1.43.0)
     permissions:
       contents: write
     with:
