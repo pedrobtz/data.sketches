@@ -11,7 +11,7 @@
 #   cardinality  hll, cpc, theta and its set operations, array_of_doubles
 #   other        frequent_items, count_min, varopt, ebpps, bloom_filter
 
-library(data.sketches)
+source("tools/alloc-prelude.R")
 
 section <- Sys.getenv("DS_ALLOC_EXERCISE", "quantiles")
 x <- as.double(1:2000)

@@ -22,3 +22,4 @@
 ^AGENTS\.md$
 ^tools/fuzz$
 ^tools/alloc-exercise\.R$
+^tools/alloc-prelude\.R$

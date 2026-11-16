@@ -31,9 +31,9 @@ jobs:
     uses: pedrobtz/r-actions/.github/workflows/alloc-failure.yml@v1
     with:
       run: DS_ALLOC_EXERCISE=${{ matrix.section }} R_ENABLE_JIT=0 Rscript tools/alloc-exercise.R
-      baseline-run: R_ENABLE_JIT=0 Rscript -e "library(data.sketches)"
-      # R's own allocation error, or cpp11's rendering of std::bad_alloc.
-      expect-pattern: "[Cc]annot allocate|memory exhausted|bad_alloc|datasketches_error"
+      baseline-run: R_ENABLE_JIT=0 Rscript tools/alloc-prelude.R
+      # R's own allocation errors, or cpp11's rendering of std::bad_alloc.
+      expect-pattern: "[Cc]annot allocate|memory exhausted|allocation error|[Oo]ut of (virtual )?memory|bad_alloc|datasketches_error"
       target-pattern: "bad_alloc"
       ignore-crash-pattern: "^ 1: (grepl?|sub|gsub|strsplit|gzfile)\\("
       max-allocations: 3000
