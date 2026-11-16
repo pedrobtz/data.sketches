@@ -55,3 +55,32 @@ jobs:
           mkdir -p "$RUNNER_TEMP/lib"
           R CMD INSTALL --no-test-load -l "$RUNNER_TEMP/lib" .
           tools/check-symbols "$RUNNER_TEMP/lib/data.sketches/libs/data.sketches.so"
+
+  # Each local patch that fixes behaviour a fuzz seed or an R test cannot
+  # reach has a C++ regression test in tools/vendor/tests/, run here under
+  # ASan: fi-oom.cpp fails every allocation of a Frequent Items sketch in
+  # turn (0004-fi-exception-safe-resize.patch, #35).
+  # ungated: seconds on one runner, and any change to the vendor tree can
+  # undo a patch.
+  patch-tests:
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+      || !(contains(github.event.pull_request.labels.*.name, 'ci:docs')
+        || contains(github.event.pull_request.labels.*.name, 'ci:minimal')
+        || contains(github.event.pull_request.labels.*.name, 'skip-ci:vendor'))
+    runs-on: ubuntu-latest
+    name: vendor patch regression tests
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and run each test under ASan
+        run: |
+          set -eu
+          inc=$(sed -n 's/^[[:space:]]*-I\(vendor\/datasketches\/[a-z]*\/include\).*/-Isrc\/\1/p' src/Makevars)
+          for t in tools/vendor/tests/*.cpp; do
+            echo "==> $t"
+            # shellcheck disable=SC2086
+            clang++ -std=c++17 -g -O1 -fsanitize=address,undefined \
+              -fno-sanitize-recover=all $inc "$t" -o "$RUNNER_TEMP/t"
+            "$RUNNER_TEMP/t"
+          done

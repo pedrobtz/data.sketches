@@ -13,12 +13,13 @@ src/vendor/datasketches/
 
 This directory vendors the header-only sources of the Apache DataSketches C++
 library, version 5.3.1 (https://github.com/apache/datasketches-cpp, tag 5.3.1),
-from the Apache source release apache-datasketches-cpp-5.3.1-src.zip, with three
+from the Apache source release apache-datasketches-cpp-5.3.1-src.zip, with four
 local changes, all under the Apache License, Version 2.0, in
 tools/patches/datasketches/: 0001-hll-validate-lg-k.patch,
 0002-bloom-require-standard-preamble.patch and
 0003-ebpps-validate-item-count.patch, which add input validation to the HLL,
-Bloom filter and EBPPS deserializers. src/vendor/PROVENANCE records the archive,
+Bloom filter and EBPPS deserializers, and 0004-fi-exception-safe-resize.patch,
+which makes the Frequent Items hash map safe against allocation failure. src/vendor/PROVENANCE records the archive,
 its digests, the patches and the update procedure (tools/vendor/fetch).
 
   Copyright 2019-2026 The Apache Software Foundation

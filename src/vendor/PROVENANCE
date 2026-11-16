@@ -17,6 +17,7 @@ Vendored dependency: Apache DataSketches C++, header-only
                  0001-hll-validate-lg-k.patch
                  0002-bloom-require-standard-preamble.patch
                  0003-ebpps-validate-item-count.patch
+                 0004-fi-exception-safe-resize.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -28,8 +29,10 @@ bindings and the CMake build are excluded. tools/vendor/manifest.tsv pins the
 archive and its sha256; tools/vendor/verify re-derives the tree from it and
 fails on any other difference.
 
-The patches close deserialization bugs that remain in 5.3.1, found by
-tools/fuzz (data.sketches issue #33), and are to be reported upstream:
+The patches close bugs that remain in 5.3.1, and are to be reported
+upstream. 0001-0003 are deserialization bugs found by tools/fuzz
+(data.sketches issue #33); 0004 was found by alloc-failure.yaml (#35) and has
+a regression test in tools/vendor/tests/fi-oom.cpp.
 
 0001-hll-validate-lg-k.patch rejects an HLL image whose lg_k lies outside
 [MIN_LOG_K, MAX_LOG_K]. The array, coupon-list and coupon-set deserializers
@@ -43,6 +46,11 @@ count past the bytes it had checked (heap over-read).
 size C is NaN, infinite, or larger than the remaining bytes can hold. The
 deserializer converted C to uint32_t unchecked (undefined behavior) and sized
 an allocation from it.
+
+0004-fi-exception-safe-resize.patch makes reverse_purge_hash_map::resize()
+allocate its three new arrays before assigning any of them, so a
+std::bad_alloc leaves the Frequent Items map intact. It used to leave keys_
+on the new, unconstructed array, and the destructor ran ~K() on garbage.
 
 Updating: change the tag, commit, version_string, archive and archive_sha256
 columns of tools/vendor/manifest.tsv (check the archive against the .sha512

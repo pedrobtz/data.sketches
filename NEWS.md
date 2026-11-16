@@ -19,6 +19,11 @@
 
 ## Bug fixes
 
+* A `frequent_items()` sketch that ran out of memory while growing no longer
+  crashes R later, when it is garbage-collected or R exits ("double free or
+  corruption"). The library's hash map was left half-resized by the failed
+  allocation; it is patched locally to stay intact (#35).
+
 * `req(k =)` now honours widths of 256 and above. The library stored `k` in
   8 bits, so `k = 500` built a sketch of width 244 and `k = 256` or
   `k = 1024` one of width 4, with correspondingly worse accuracy.

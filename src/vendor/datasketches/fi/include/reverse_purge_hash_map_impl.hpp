@@ -329,11 +329,32 @@ void reverse_purge_hash_map<K, V, H, E, A>::resize(uint8_t lg_new_size) {
   V* old_values = values_;
   uint16_t* old_states = states_;
   const uint32_t new_size = 1 << lg_new_size;
-  keys_ = allocator_.allocate(new_size);
+  // Allocate all three arrays before touching the map, so that an allocation
+  // failure leaves it as it was. Assigning them to the members one by one
+  // left keys_ pointing at the new, unconstructed array while states_ and
+  // lg_cur_size_ still described the old one, and the destructor then ran
+  // ~K() on uninitialized memory.
+  K* new_keys = allocator_.allocate(new_size);
   AllocV av(allocator_);
-  values_ = av.allocate(new_size);
+  V* new_values;
+  try {
+    new_values = av.allocate(new_size);
+  } catch (...) {
+    allocator_.deallocate(new_keys, new_size);
+    throw;
+  }
   AllocU16 au16(allocator_);
-  states_ = au16.allocate(new_size);
+  uint16_t* new_states;
+  try {
+    new_states = au16.allocate(new_size);
+  } catch (...) {
+    av.deallocate(new_values, new_size);
+    allocator_.deallocate(new_keys, new_size);
+    throw;
+  }
+  keys_ = new_keys;
+  values_ = new_values;
+  states_ = new_states;
   std::fill(states_, states_ + new_size, static_cast<uint16_t>(0));
   num_active_ = 0;
   lg_cur_size_ = lg_new_size;
