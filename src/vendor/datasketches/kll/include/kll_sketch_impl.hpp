@@ -810,9 +810,13 @@ void kll_sketch<T, C, A>::merge_higher_levels(O&& other, uint64_t final_n) {
 
   // now we need to transfer the results back into "this" sketch
   if (result.final_capacity != items_size_) {
+    // Allocate the replacement before freeing the old buffer: freeing first
+    // left items_ dangling when the allocation threw, and the destructor then
+    // freed it a second time.
+    T* new_items = allocator_.allocate(result.final_capacity);
     allocator_.deallocate(items_, items_size_);
+    items_ = new_items;
     items_size_ = result.final_capacity;
-    items_ = allocator_.allocate(items_size_);
   }
   const uint32_t free_space_at_bottom = result.final_capacity - result.final_num_items;
   kll_helper::move_construct<T>(workbuf.get(), outlevels[0], outlevels[0] + result.final_num_items, items_, free_space_at_bottom, true);

@@ -58,8 +58,10 @@ jobs:
 
   # Each local patch that fixes behaviour a fuzz seed or an R test cannot
   # reach has a C++ regression test in tools/vendor/tests/, run here under
-  # ASan: fi-oom.cpp fails every allocation of a Frequent Items sketch in
-  # turn (0004-fi-exception-safe-resize.patch, #35).
+  # ASan: fi-oom.cpp and kll-merge-oom.cpp fail every allocation of a
+  # Frequent Items sketch, and of a KLL merge, in turn
+  # (0004-fi-exception-safe-resize.patch, 0007-kll-merge-allocate-first.patch;
+  # #35).
   # ungated: seconds on one runner, and any change to the vendor tree can
   # undo a patch.
   patch-tests:

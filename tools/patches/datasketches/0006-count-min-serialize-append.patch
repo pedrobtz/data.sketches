@@ -1,0 +1,30 @@
+Build count_min_sketch::serialize() by appending, not through data().
+
+serialize() sized a vector and wrote through bytes.data() + offset. gcc 13
+with -fsanitize=undefined cannot prove the vector non-empty and reports the
+writes as out of bounds (-Wstringop-overflow, -Warray-bounds), which R CMD
+check turns into a WARNING on the gcc-UBSAN flavor. Appending with insert()
+produces the same bytes and no diagnostic.
+
+--- a/count/include/count_min_impl.hpp	2026-11-16 19:37:11
++++ b/count/include/count_min_impl.hpp	2026-11-16 19:37:11
+@@ -363,10 +363,15 @@
+ 
+ template<typename W, typename A>
+ auto count_min_sketch<W,A>::serialize(unsigned header_size_bytes) const -> vector_bytes {
+-  vector_bytes bytes(header_size_bytes + get_serialized_size_bytes(), 0, _allocator);
+-  uint8_t *ptr = bytes.data() + header_size_bytes;
+-  serialize_to([&ptr](const void* data, size_t size) {
+-    ptr += copy_to_mem(data, ptr, size);
++  // Append rather than write through bytes.data(): the same bytes, but gcc
++  // (with -fsanitize=undefined) could not prove the buffer non-empty and
++  // reported the raw writes as out of bounds (-Wstringop-overflow,
++  // -Warray-bounds), which R CMD check turns into a WARNING.
++  vector_bytes bytes(header_size_bytes, 0, _allocator);
++  bytes.reserve(header_size_bytes + get_serialized_size_bytes());
++  serialize_to([&bytes](const void* data, size_t size) {
++    const uint8_t* p = static_cast<const uint8_t*>(data);
++    bytes.insert(bytes.end(), p, p + size);
+   });
+ 
+   return bytes;

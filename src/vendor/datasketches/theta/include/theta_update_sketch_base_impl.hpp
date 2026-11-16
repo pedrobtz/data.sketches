@@ -267,10 +267,13 @@ void theta_update_sketch_base<EN, EK, A>::reset() {
   const uint8_t starting_lg_size = theta_build_helper<true>::starting_sub_multiple(
       lg_nom_size_ + 1, theta_constants::MIN_LG_ARR, static_cast<uint8_t>(rf_));
   if (starting_lg_size != lg_cur_size_) {
-    allocator_.deallocate(entries_, cur_size);
-    lg_cur_size_ = starting_lg_size;
+    // Allocate before freeing, as in kll_sketch::merge_higher_levels(), so a
+    // std::bad_alloc does not leave entries_ dangling for the destructor.
     const size_t new_size = 1ULL << starting_lg_size;
-    entries_ = allocator_.allocate(new_size);
+    EN* new_entries = allocator_.allocate(new_size);
+    allocator_.deallocate(entries_, cur_size);
+    entries_ = new_entries;
+    lg_cur_size_ = starting_lg_size;
     for (size_t i = 0; i < new_size; ++i) EK()(entries_[i]) = 0;
   }
   num_entries_ = 0;

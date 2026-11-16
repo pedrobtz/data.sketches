@@ -397,6 +397,11 @@ bloom_filter_alloc<A> bloom_filter_alloc<A>::internal_deserialize_or_wrap(void* 
   if (prelongs != PREAMBLE_LONGS_STANDARD) {
     throw std::invalid_argument("Possible corruption: non-empty filter with an empty-filter preamble");
   }
+  // A non-empty filter needs bits: with none, every update and query takes a
+  // hash modulo zero.
+  if (num_longs == 0) {
+    throw std::invalid_argument("Possible corruption: non-empty filter with zero capacity");
+  }
 
   uint64_t raw_num_bits_set;
   ptr += copy_from_mem(ptr, raw_num_bits_set);

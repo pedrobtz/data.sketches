@@ -1,0 +1,31 @@
+Validate the header of a non-empty Bloom filter.
+
+Two checks, both on deserializing a filter whose empty flag is clear, both
+found by data.sketches tools/fuzz:
+
+- A header with the 3-long empty preamble passes the minimum-size check for
+  24 bytes, then num_bits_set is read at offset 24: a heap over-read (ASan).
+- num_longs = 0 builds a filter of zero capacity through the constructor
+  that does not validate it; the first update() or query() then takes a
+  hash modulo zero (SIGFPE), and its serialization is rejected on reading.
+
+--- a/filters/include/bloom_filter_impl.hpp	2026-11-16 19:35:53
++++ b/filters/include/bloom_filter_impl.hpp	2026-11-16 19:35:53
+@@ -392,6 +392,17 @@
+     return bloom_filter_alloc<A>(num_longs << 6, num_hashes, seed, allocator);
+   }
+ 
++  // A non-empty filter carries the standard preamble; with the empty one the
++  // bit count below would be read past the bytes checked above.
++  if (prelongs != PREAMBLE_LONGS_STANDARD) {
++    throw std::invalid_argument("Possible corruption: non-empty filter with an empty-filter preamble");
++  }
++  // A non-empty filter needs bits: with none, every update and query takes a
++  // hash modulo zero.
++  if (num_longs == 0) {
++    throw std::invalid_argument("Possible corruption: non-empty filter with zero capacity");
++  }
++
+   uint64_t raw_num_bits_set;
+   ptr += copy_from_mem(ptr, raw_num_bits_set);
+ 

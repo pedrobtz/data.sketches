@@ -11,7 +11,8 @@
 
 * Bugs that remain in 5.3.1 are patched locally: an HLL payload with an
   out-of-range `lg_k` no longer reaches undefined behavior, a corrupt Bloom
-  filter payload no longer reads past its buffer, and an EBPPS payload whose
+  filter payload no longer reads past its buffer or, with zero capacity,
+  crashes R on the first `$update()` or `$query()` (division by zero), and an EBPPS payload whose
   item count is NaN or huge no longer reaches an unchecked conversion and
   allocation. All three now raise `datasketches_invalid_bytes` (#33).
   Serializing an EBPPS sketch with no full items no longer passes a null
@@ -22,10 +23,11 @@
 
 ## Bug fixes
 
-* A `frequent_items()` sketch that ran out of memory while growing no longer
-  crashes R later, when it is garbage-collected or R exits ("double free or
-  corruption"). The library's hash map was left half-resized by the failed
-  allocation; it is patched locally to stay intact (#35).
+* A `frequent_items()` sketch that ran out of memory while growing, or a KLL
+  sketch that ran out of memory in `$merge()`, no longer crashes R later,
+  when it is garbage-collected or R exits ("double free or corruption"). The
+  library left the sketch's memory half-replaced after the failed
+  allocation; both are patched locally (#35).
 
 * `req(k =)` now honours widths of 256 and above. The library stored `k` in
   8 bits, so `k = 500` built a sketch of width 244 and `k = 256` or

@@ -363,10 +363,15 @@ size_t count_min_sketch<W,A>::get_serialized_size_bytes() const {
 
 template<typename W, typename A>
 auto count_min_sketch<W,A>::serialize(unsigned header_size_bytes) const -> vector_bytes {
-  vector_bytes bytes(header_size_bytes + get_serialized_size_bytes(), 0, _allocator);
-  uint8_t *ptr = bytes.data() + header_size_bytes;
-  serialize_to([&ptr](const void* data, size_t size) {
-    ptr += copy_to_mem(data, ptr, size);
+  // Append rather than write through bytes.data(): the same bytes, but gcc
+  // (with -fsanitize=undefined) could not prove the buffer non-empty and
+  // reported the raw writes as out of bounds (-Wstringop-overflow,
+  // -Warray-bounds), which R CMD check turns into a WARNING.
+  vector_bytes bytes(header_size_bytes, 0, _allocator);
+  bytes.reserve(header_size_bytes + get_serialized_size_bytes());
+  serialize_to([&bytes](const void* data, size_t size) {
+    const uint8_t* p = static_cast<const uint8_t*>(data);
+    bytes.insert(bytes.end(), p, p + size);
   });
 
   return bytes;

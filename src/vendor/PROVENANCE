@@ -15,10 +15,12 @@ Vendored dependency: Apache DataSketches C++, header-only
                  inst/COPYRIGHTS
   Local patches: applied in this order, from tools/patches/datasketches/
                  0001-hll-validate-lg-k.patch
-                 0002-bloom-require-standard-preamble.patch
+                 0002-bloom-validate-header.patch
                  0003-ebpps-validate-item-count.patch
                  0004-fi-exception-safe-resize.patch
                  0005-serde-no-null-memcpy.patch
+                 0006-count-min-serialize-append.patch
+                 0007-kll-merge-allocate-first.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -32,16 +34,18 @@ fails on any other difference.
 
 The patches close bugs that remain in 5.3.1, and are to be reported
 upstream. 0001-0003 and 0005 are found by tools/fuzz
-(data.sketches issue #33); 0004 was found by alloc-failure.yaml (#35) and has
-a regression test in tools/vendor/tests/fi-oom.cpp.
+(data.sketches issue #33); 0004 and 0007 were found by alloc-failure.yaml
+(#35) and have regression tests in tools/vendor/tests/; 0006 is a compiler
+diagnostic, not a bug.
 
 0001-hll-validate-lg-k.patch rejects an HLL image whose lg_k lies outside
 [MIN_LOG_K, MAX_LOG_K]. The array, coupon-list and coupon-set deserializers
 used it unchecked as a shift count (undefined behavior for lg_k > 32).
 
-0002-bloom-require-standard-preamble.patch rejects a non-empty Bloom filter
-image with the empty-filter preamble, which made the parser read the bit
-count past the bytes it had checked (heap over-read).
+0002-bloom-validate-header.patch rejects a non-empty Bloom filter image
+with the empty-filter preamble, which made the parser read the bit count
+past the bytes it had checked (heap over-read), and one with zero capacity,
+whose first update or query divided by zero (SIGFPE, killing R).
 
 0003-ebpps-validate-item-count.patch rejects an EBPPS image whose stored
 size C is NaN, infinite, or larger than the remaining bytes can hold. The
@@ -56,6 +60,17 @@ on the new, unconstructed array, and the destructor ran ~K() on garbage.
 0005-serde-no-null-memcpy.patch skips the memcpy in serde<T>::serialize and
 ::deserialize when there are no items, since an empty EBPPS sample passes a
 null pointer and memcpy with one is undefined even for zero bytes.
+
+0006-count-min-serialize-append.patch builds count_min_sketch::serialize()'s
+output by appending instead of writing through data(); same bytes, but gcc's
+UBSan build no longer reports the writes as out of bounds, a WARNING under
+R CMD check.
+
+0007-kll-merge-allocate-first.patch makes kll_sketch::merge_higher_levels()
+allocate its new items buffer before freeing the old one; a std::bad_alloc
+used to leave items_ dangling, and the destructor freed it twice.
+theta_update_sketch_base::reset(), which had the same order but which the
+package does not call, gets the same fix.
 
 Updating: change the tag, commit, version_string, archive and archive_sha256
 columns of tools/vendor/manifest.tsv (check the archive against the .sha512

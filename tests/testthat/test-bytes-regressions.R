@@ -14,7 +14,8 @@
 #   05 cpc         heap over-read                     fixed in 5.3.0
 #   09 count_min   heap over-read                     fixed in 5.3.0
 #   11 ebpps       NaN/huge item count cast (UB)      tools/patches 0003
-#   12 bloom       over-read past the empty preamble  tools/patches 0002
+#   12 bloom       over-read past the empty preamble; tools/patches 0002
+#                  zero capacity, SIGFPE on update
 
 test_that("payloads that crashed the deserializers raise datasketches_invalid_bytes", {
   constructors <- list(
