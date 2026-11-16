@@ -273,11 +273,21 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
     case 11:
       tagged<ebpps_sketch<double>, ebpps_sketch<std::string>>("ebpps", data, size);
       break;
-    case 12:
+    case 12: {
+      // An empty Bloom image declares its capacity (num_longs), and any reader
+      // allocates and zeroes that many bits: a legitimate empty filter can be
+      // gigabytes (the library allows about 2^34 bits), so this is the format,
+      // not a bug. Skip past 64 MiB, which only measures the fuzzer's time.
+      if (size >= 20 && (data[3] & 0x04)) {
+        uint32_t num_longs;
+        std::memcpy(&num_longs, data + 16, sizeof(num_longs));
+        if (static_cast<uint64_t>(num_longs) * 8 > (64ULL << 20)) break;
+      }
       round_trip("bloom_filter", data, size,
                  [](const uint8_t* p, size_t n) { return bloom_filter::deserialize(p, n); },
                  plain<bloom_filter>);
       break;
+    }
   }
   return 0;
 }
