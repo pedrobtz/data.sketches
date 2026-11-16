@@ -1,0 +1,60 @@
+Validate the item count when deserializing an EBPPS sample.
+
+The sample stores its size C as a double. The check C < 0.0 lets NaN
+through, and a huge C is converted to uint32_t (undefined behavior, found
+by data.sketches tools/fuzz under UBSan) and then sizes an allocation.
+Reject a non-finite C, and a count that the remaining bytes cannot hold
+(bytes overload) or that does not fit uint32_t (stream overload).
+
+--- a/sampling/include/ebpps_sample_impl.hpp	2026-11-16 18:57:45
++++ b/sampling/include/ebpps_sample_impl.hpp	2026-11-16 18:57:44
+@@ -26,6 +26,7 @@
+ #include "serde.hpp"
+ 
+ #include <cmath>
++#include <limits>
+ #include <string>
+ #include <sstream>
+ #include <type_traits>
+@@ -347,13 +348,19 @@
+   ensure_minimum_memory(size, sizeof(double));
+   double c;
+   ptr += copy_from_mem(ptr, c);
+-  if (c < 0.0)
+-    throw std::runtime_error("sketch image has C < 0.0 during deserializaiton");
++  if (!(c >= 0.0) || !std::isfinite(c))
++    throw std::runtime_error("sketch image has C < 0.0 or non-finite C during deserializaiton");
+ 
+   double c_int;
+   const double c_frac = std::modf(c, &c_int);
+   const bool has_partial = c_frac != 0.0;
+ 
++  // Every item takes at least one byte of the image, so a count beyond the
++  // bytes left is corrupt; checking first also keeps the conversion below
++  // in range and the allocation bounded by the input.
++  if (c_int > static_cast<double>(end_ptr - ptr))
++    throw std::runtime_error("sketch image has more items than bytes during deserialization");
++
+   const uint32_t num_full_items = static_cast<uint32_t>(c_int);
+   A alloc(allocator);
+   std::unique_ptr<T, items_deleter> items(alloc.allocate(num_full_items), items_deleter(allocator, false, num_full_items));
+@@ -386,13 +393,17 @@
+ template<typename SerDe>
+ ebpps_sample<T, A> ebpps_sample<T, A>::deserialize(std::istream& is, const SerDe& sd, const A& allocator) {
+   const double c = read<double>(is);
+-  if (c < 0.0)
+-    throw std::runtime_error("sketch image has C < 0.0 during deserializaiton");
++  if (!(c >= 0.0) || !std::isfinite(c))
++    throw std::runtime_error("sketch image has C < 0.0 or non-finite C during deserializaiton");
+ 
+   double c_int;
+   const double c_frac = std::modf(c, &c_int);
+   const bool has_partial = c_frac != 0.0;
+ 
++  // Keep the conversion below in range: a larger count is corrupt.
++  if (c_int > static_cast<double>(std::numeric_limits<uint32_t>::max()))
++    throw std::runtime_error("sketch image has too many items during deserialization");
++
+   const uint32_t num_full_items = static_cast<uint32_t>(c_int);
+   A alloc(allocator);
+   std::unique_ptr<T, items_deleter> items(alloc.allocate(num_full_items), items_deleter(allocator, false, num_full_items));

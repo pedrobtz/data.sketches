@@ -26,6 +26,7 @@
 #include "serde.hpp"
 
 #include <cmath>
+#include <limits>
 #include <string>
 #include <sstream>
 #include <type_traits>
@@ -347,12 +348,18 @@ std::pair<ebpps_sample<T, A>, size_t> ebpps_sample<T, A>::deserialize(const uint
   ensure_minimum_memory(size, sizeof(double));
   double c;
   ptr += copy_from_mem(ptr, c);
-  if (c < 0.0)
-    throw std::runtime_error("sketch image has C < 0.0 during deserializaiton");
+  if (!(c >= 0.0) || !std::isfinite(c))
+    throw std::runtime_error("sketch image has C < 0.0 or non-finite C during deserializaiton");
 
   double c_int;
   const double c_frac = std::modf(c, &c_int);
   const bool has_partial = c_frac != 0.0;
+
+  // Every item takes at least one byte of the image, so a count beyond the
+  // bytes left is corrupt; checking first also keeps the conversion below
+  // in range and the allocation bounded by the input.
+  if (c_int > static_cast<double>(end_ptr - ptr))
+    throw std::runtime_error("sketch image has more items than bytes during deserialization");
 
   const uint32_t num_full_items = static_cast<uint32_t>(c_int);
   A alloc(allocator);
@@ -386,12 +393,16 @@ template<typename T, typename A>
 template<typename SerDe>
 ebpps_sample<T, A> ebpps_sample<T, A>::deserialize(std::istream& is, const SerDe& sd, const A& allocator) {
   const double c = read<double>(is);
-  if (c < 0.0)
-    throw std::runtime_error("sketch image has C < 0.0 during deserializaiton");
+  if (!(c >= 0.0) || !std::isfinite(c))
+    throw std::runtime_error("sketch image has C < 0.0 or non-finite C during deserializaiton");
 
   double c_int;
   const double c_frac = std::modf(c, &c_int);
   const bool has_partial = c_frac != 0.0;
+
+  // Keep the conversion below in range: a larger count is corrupt.
+  if (c_int > static_cast<double>(std::numeric_limits<uint32_t>::max()))
+    throw std::runtime_error("sketch image has too many items during deserialization");
 
   const uint32_t num_full_items = static_cast<uint32_t>(c_int);
   A alloc(allocator);

@@ -16,6 +16,7 @@ Vendored dependency: Apache DataSketches C++, header-only
   Local patches: applied in this order, from tools/patches/datasketches/
                  0001-hll-validate-lg-k.patch
                  0002-bloom-require-standard-preamble.patch
+                 0003-ebpps-validate-item-count.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
@@ -27,7 +28,7 @@ bindings and the CMake build are excluded. tools/vendor/manifest.tsv pins the
 archive and its sha256; tools/vendor/verify re-derives the tree from it and
 fails on any other difference.
 
-Both patches close deserialization bugs that remain in 5.3.1, found by
+The patches close deserialization bugs that remain in 5.3.1, found by
 tools/fuzz (data.sketches issue #33), and are to be reported upstream:
 
 0001-hll-validate-lg-k.patch rejects an HLL image whose lg_k lies outside
@@ -37,6 +38,11 @@ used it unchecked as a shift count (undefined behavior for lg_k > 32).
 0002-bloom-require-standard-preamble.patch rejects a non-empty Bloom filter
 image with the empty-filter preamble, which made the parser read the bit
 count past the bytes it had checked (heap over-read).
+
+0003-ebpps-validate-item-count.patch rejects an EBPPS image whose stored
+size C is NaN, infinite, or larger than the remaining bytes can hold. The
+deserializer converted C to uint32_t unchecked (undefined behavior) and sized
+an allocation from it.
 
 Updating: change the tag, commit, version_string, archive and archive_sha256
 columns of tools/vendor/manifest.tsv (check the archive against the .sha512

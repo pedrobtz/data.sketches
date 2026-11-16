@@ -27,6 +27,12 @@ jobs:
     with:
       asan: true
       profile: auto
+      # gcc 13 with the UBSan instrumentation reports -Wstringop-overflow in
+      # count_min_sketch::serialize ("destination object is likely at address
+      # zero"): it cannot see that the vector it writes into is non-empty. No
+      # uninstrumented build warns, CRAN's gcc 16 container included, and the
+      # write is in range; R CMD check would turn the warning into a WARNING.
+      gcc-ubsan-flags: -Wno-stringop-overflow
 
   valgrind:
     uses: pedrobtz/r-actions/.github/workflows/valgrind.yml@v1
