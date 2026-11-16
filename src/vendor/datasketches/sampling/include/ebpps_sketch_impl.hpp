@@ -428,6 +428,14 @@ ebpps_sketch<T,A> ebpps_sketch<T,A>::deserialize(const void* bytes, size_t size,
   double rho;
   ptr += copy_from_mem(ptr, rho);
 
+  // A non-empty sketch has seen items: n > 0, a positive finite cumulative
+  // and maximum weight, and rho in (0, 1]. An image without them is corrupt,
+  // and re-serializes as something else (n == 0 reads back as empty).
+  if (n == 0 || !(cumulative_wt > 0) || !std::isfinite(cumulative_wt) ||
+      !(wt_max > 0) || !std::isfinite(wt_max) || !(rho > 0 && rho <= 1)) {
+    throw std::invalid_argument("Possible corruption: inconsistent EBPPS sketch header");
+  }
+
   auto pair = ebpps_sample<T, A>::deserialize(ptr, end_ptr - ptr, sd, allocator);
   ebpps_sample<T, A> sample = pair.first;
   ptr += pair.second;
@@ -460,6 +468,14 @@ ebpps_sketch<T,A> ebpps_sketch<T,A>::deserialize(std::istream& is, const SerDe& 
   const double cumulative_wt = read<double>(is);
   const double wt_max = read<double>(is);
   const double rho = read<double>(is);
+
+  // A non-empty sketch has seen items: n > 0, a positive finite cumulative
+  // and maximum weight, and rho in (0, 1]. An image without them is corrupt,
+  // and re-serializes as something else (n == 0 reads back as empty).
+  if (n == 0 || !(cumulative_wt > 0) || !std::isfinite(cumulative_wt) ||
+      !(wt_max > 0) || !std::isfinite(wt_max) || !(rho > 0 && rho <= 1)) {
+    throw std::invalid_argument("Possible corruption: inconsistent EBPPS sketch header");
+  }
 
   auto sample = ebpps_sample<T,A>::deserialize(is, sd, allocator);
 

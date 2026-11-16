@@ -9,14 +9,16 @@
   CVE-2026-123274, CVE-2026-123338). Every `bytes =` constructor was
   affected. If you rebuild sketches from bytes you did not produce, upgrade.
 
-* Bugs that remain in 5.3.1 are patched locally: an HLL payload with an
-  out-of-range `lg_k` no longer reaches undefined behavior, a corrupt Bloom
-  filter payload no longer reads past its buffer or, with zero capacity,
-  crashes R on the first `$update()` or `$query()` (division by zero), and an EBPPS payload whose
-  item count is NaN or huge no longer reaches an unchecked conversion and
-  allocation. All three now raise `datasketches_invalid_bytes` (#33).
-  Serializing an EBPPS sketch with no full items no longer passes a null
-  pointer to `memcpy()`.
+* Many deserialization bugs that remain in 5.3.1 are patched locally, found
+  by fuzzing every `bytes =` constructor under AddressSanitizer and
+  UndefinedBehaviorSanitizer (#33). A corrupt payload is now rejected with
+  `datasketches_invalid_bytes` instead of reaching undefined behavior, an
+  out-of-bounds read or write, a double free, a crash on first use (a Bloom
+  filter of zero capacity divided by zero on `$update()`), or an allocation
+  of gigabytes from a few bytes. The families affected are `hll()`,
+  `bloom_filter()`, `ebpps()`, `frequent_items()`, `req()`, `count_min()`,
+  `tdigest_double()` and `theta()`. Payloads written by valid sketches,
+  including those from data.sketches 0.1.1, still load.
 
 * A small corrupt `req()` payload could request an 8 GiB allocation; 5.3.1
   rejects it (#33).

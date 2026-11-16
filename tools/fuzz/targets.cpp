@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <string>
 #include <tuple>
@@ -134,6 +135,20 @@ fi_key_t fi_key(const fi_t& s) {
   return k;
 }
 
+// t-Digest's key is its serialization with one bit masked: an empty sketch's
+// reverse_merge flag (bit 2 of the flags byte, offset 5). It only says which
+// way the next internal merge runs, so it means nothing for an empty sketch,
+// and upstream's empty-image path drops it on reading
+// (`if (is_empty) return tdigest(k, allocator)`). A payload flagged non-empty
+// but holding nothing keeps it for one round trip and loses it on the next;
+// nothing observable changes. Everything else must still match exactly.
+bytes_t tdigest_key(const datasketches::tdigest_double& s) {
+  auto v = s.serialize();
+  bytes_t b(v.begin(), v.end());
+  if (b.size() > 5 && (b[5] & 0x01)) b[5] &= static_cast<uint8_t>(~0x04);
+  return b;
+}
+
 }  // namespace
 
 extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
@@ -162,9 +177,10 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
     case 3:
       round_trip("tdigest_double", data, size,
                  [](const uint8_t* p, size_t n) { return tdigest_double::deserialize(p, n); },
-                 plain<tdigest_double>);
+                 plain<tdigest_double>, tdigest_key);
       break;
     case 4:
+      if (size < 8) break;  // hll() rejects a shorter payload in R
       round_trip("hll", data, size,
                  [](const uint8_t* p, size_t n) { return hll_sketch::deserialize(p, n); },
                  [](const hll_sketch& s) {
@@ -199,11 +215,22 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
                  },
                  plain<fi_t>, fi_key);
       break;
-    case 9:
+    case 9: {
+      // An empty Count-Min image still declares its table, and any reader
+      // allocates num_hashes * num_buckets counters for it: a legitimate empty
+      // sketch can be large, so this is the format, not a bug. Skip the ones
+      // past 64 MiB, which would only measure the fuzzer's memory limit.
+      if (size >= 16 && (data[3] & 0x01)) {
+        uint32_t nbuckets;
+        std::memcpy(&nbuckets, data + 8, sizeof(nbuckets));
+        const uint64_t cells = static_cast<uint64_t>(nbuckets) * data[12];
+        if (cells * sizeof(double) > (64ULL << 20)) break;
+      }
       round_trip("count_min", data, size,
                  [](const uint8_t* p, size_t n) { return count_min_sketch<double>::deserialize(p, n, seed); },
                  plain<count_min_sketch<double>>);
       break;
+    }
     case 10:
       tagged<var_opt_sketch<double>, var_opt_sketch<std::string>>("varopt", data, size);
       break;

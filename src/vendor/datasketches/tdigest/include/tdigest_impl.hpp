@@ -52,6 +52,62 @@ inline void check_non_zero(T value, const char* name) {
   }
 }
 
+// Images in the reference implementation's formats store k and the centroid
+// weights as floating point. Converting an out-of-range value (NaN, a
+// negative, a huge one) to an integer is undefined, so check first.
+inline uint16_t checked_compat_k(double k) {
+  if (!(k >= 10 && k <= 65535)) {
+    throw std::invalid_argument("Possible corruption: k must be in [10, 65535]");
+  }
+  return static_cast<uint16_t>(k);
+}
+
+// The centroid weights of an image must sum without wrapping the 64-bit
+// total: a wrapped total later yields NaN means when the sketch compresses.
+inline void add_weight_checked(uint64_t& total, uint64_t weight) {
+  if (weight > std::numeric_limits<uint64_t>::max() - total) {
+    throw std::invalid_argument("Possible corruption: total weight overflows 64 bits");
+  }
+  total += weight;
+}
+
+// A t-digest's min and max bound every centroid mean and buffered value. An
+// image that breaks that (min > max, a mean far outside) overflows to
+// infinity and then NaN when the sketch compresses, and its serialization is
+// refused on reading.
+template<typename T>
+inline void check_in_range(T value, T min, T max, const char* name) {
+  if (value < min || value > max) {
+    throw std::invalid_argument(std::string("Possible corruption: ") + name + " outside [min, max]");
+  }
+}
+
+// A centroid mean is a weighted average of values in [min, max], so rounding
+// may put it a few ulps outside; allow a margin that scales with the values,
+// which still rejects means orders of magnitude away.
+template<typename T>
+inline void check_mean_in_range(double mean, T min, T max) {
+  const double lo = static_cast<double>(min), hi = static_cast<double>(max);
+  const double margin = (std::fabs(lo) + std::fabs(hi) + (hi - lo)) * 1e-6;
+  if (mean < lo - margin || mean > hi + margin) {
+    throw std::invalid_argument("Possible corruption: centroid mean outside [min, max]");
+  }
+}
+
+template<typename T>
+inline void check_min_max(T min, T max) {
+  if (min > max) {
+    throw std::invalid_argument("Possible corruption: min > max");
+  }
+}
+
+inline uint64_t checked_compat_weight(double weight) {
+  if (!(weight >= 1 && weight < 18446744073709551616.0)) {
+    throw std::invalid_argument("Possible corruption: centroid weight must be at least 1 and fit 64 bits");
+  }
+  return static_cast<uint64_t>(weight);
+}
+
 template<typename T, typename A>
 tdigest<T, A>::tdigest(uint16_t k, const A& allocator):
 tdigest(false, k, std::numeric_limits<T>::infinity(), -std::numeric_limits<T>::infinity(), vector_centroid(allocator), 0, vector_t(allocator))
@@ -446,6 +502,7 @@ tdigest<T, A> tdigest<T, A>::deserialize(std::istream& is, const A& allocator) {
   check_not_infinite(min, "min");
   check_not_nan(max, "max");
   check_not_infinite(max, "max");
+  check_min_max(min, max);
   vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
   if (num_centroids > 0) read(is, centroids.data(), num_centroids * sizeof(centroid));
   vector_t buffer(num_buffered, 0, allocator);
@@ -454,13 +511,15 @@ tdigest<T, A> tdigest<T, A>::deserialize(std::istream& is, const A& allocator) {
   for (const auto& c: centroids) {
     check_not_nan(c.get_mean(), "centroid mean");
     check_not_infinite(c.get_mean(), "centroid mean");
+    check_mean_in_range(c.get_mean(), min, max);
     check_non_zero(c.get_weight(), "centroid weight");
 
-    weight += c.get_weight();
+    add_weight_checked(weight, c.get_weight());
   }
   for (const auto& value: buffer) {
     check_not_nan(value, "buffered_value");
     check_not_infinite(value, "buffered_value");
+    check_in_range(value, min, max, "buffered value");
   }
   return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
 }
@@ -519,6 +578,7 @@ tdigest<T, A> tdigest<T, A>::deserialize(const void* bytes, size_t size, const A
   check_not_infinite(min, "min");
   check_not_nan(max, "max");
   check_not_infinite(max, "max");
+  check_min_max(min, max);
   vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
   if (num_centroids > 0) ptr += copy_from_mem(ptr, centroids.data(), num_centroids * sizeof(centroid));
   vector_t buffer(num_buffered, 0, allocator);
@@ -527,13 +587,15 @@ tdigest<T, A> tdigest<T, A>::deserialize(const void* bytes, size_t size, const A
   for (const auto& c: centroids) {
     check_not_nan(c.get_mean(), "centroid mean");
     check_not_infinite(c.get_mean(), "centroid mean");
+    check_mean_in_range(c.get_mean(), min, max);
     check_non_zero(c.get_weight(), "centroid weight");
 
-    weight += c.get_weight();
+    add_weight_checked(weight, c.get_weight());
   }
   for (const auto& value: buffer) {
     check_not_nan(value, "buffered_value");
     check_not_infinite(value, "buffered_value");
+    check_in_range(value, min, max, "buffered value");
   }
   return tdigest(reverse_merge, k, min, max, std::move(centroids), weight, std::move(buffer));
 }
@@ -555,7 +617,8 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(std::istream& is, const A& alloc
     check_not_infinite(min, "min");
     check_not_nan(max, "max");
     check_not_infinite(max, "max");
-    const auto k = static_cast<uint16_t>(read_big_endian<double>(is));
+    check_min_max(min, max);
+    const auto k = checked_compat_k(read_big_endian<double>(is));
     const auto num_centroids = read_big_endian<uint32_t>(is);
     vector_centroid centroids(num_centroids, centroid(0, 0), allocator);
     uint64_t total_weight = 0;
@@ -568,9 +631,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(std::istream& is, const A& alloc
       const auto mean = read_big_endian<double>(is);
       check_not_nan(mean, "centroid mean");
       check_not_infinite(mean, "centroid mean");
-      const W weight = static_cast<W>(weight_double);
+      check_mean_in_range(mean, min, max);
+      const W weight = static_cast<W>(checked_compat_weight(weight_double));
       c = centroid(mean, weight);
-      total_weight += weight;
+      add_weight_checked(total_weight, weight);
     }
     return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
   }
@@ -581,7 +645,8 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(std::istream& is, const A& alloc
   check_not_infinite(min, "min");
   check_not_nan(max, "max");
   check_not_infinite(max, "max");
-  const auto k = static_cast<uint16_t>(read_big_endian<float>(is));
+  check_min_max(min, max);
+  const auto k = checked_compat_k(read_big_endian<float>(is));
   // reference implementation stores capacities of the array of centroids and the buffer as shorts
   // they can be derived from k in the constructor
   read<uint32_t>(is); // unused
@@ -595,9 +660,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(std::istream& is, const A& alloc
     const auto mean = read_big_endian<float>(is);
     check_not_nan(mean, "centroid mean");
     check_not_infinite(mean, "centroid mean");
-    const W weight = static_cast<W>(weight_float);
+    check_mean_in_range(mean, min, max);
+    const W weight = static_cast<W>(checked_compat_weight(weight_float));
     c = centroid(mean, weight);
-    total_weight += weight;
+    add_weight_checked(total_weight, weight);
   }
   return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
 }
@@ -626,9 +692,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(const void* bytes, size_t size, 
     check_not_infinite(min, "min");
     check_not_nan(max, "max");
     check_not_infinite(max, "max");
+    check_min_max(min, max);
     double k_double;
     ptr += copy_from_mem(ptr, k_double);
-    const uint16_t k = static_cast<uint16_t>(byteswap(k_double));
+    const uint16_t k = checked_compat_k(byteswap(k_double));
     uint32_t num_centroids;
     ptr += copy_from_mem(ptr, num_centroids);
     num_centroids = byteswap(num_centroids);
@@ -646,8 +713,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(const void* bytes, size_t size, 
       check_not_infinite(weight, "centroid weight");
       check_not_nan(mean, "centroid mean");
       check_not_infinite(mean, "centroid mean");
-      c = centroid(mean, static_cast<W>(weight));
-      total_weight += static_cast<uint64_t>(weight);
+      check_mean_in_range(mean, min, max);
+      const W w = static_cast<W>(checked_compat_weight(weight));
+      c = centroid(mean, w);
+      add_weight_checked(total_weight, w);
     }
     return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
   }
@@ -663,9 +732,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(const void* bytes, size_t size, 
   check_not_infinite(min, "min");
   check_not_nan(max, "max");
   check_not_infinite(max, "max");
+  check_min_max(min, max);
   float k_float;
   ptr += copy_from_mem(ptr, k_float);
-  const uint16_t k = static_cast<uint16_t>(byteswap(k_float));
+  const uint16_t k = checked_compat_k(byteswap(k_float));
   // reference implementation stores capacities of the array of centroids and the buffer as shorts
   // they can be derived from k in the constructor
   ptr += sizeof(uint32_t); // unused
@@ -686,8 +756,10 @@ tdigest<T, A> tdigest<T, A>::deserialize_compat(const void* bytes, size_t size, 
     check_not_infinite(weight, "centroid weight");
     check_not_nan(mean, "centroid mean");
     check_not_infinite(mean, "centroid mean");
-    c = centroid(mean, static_cast<W>(weight));
-    total_weight += static_cast<uint64_t>(weight);
+    check_mean_in_range(mean, min, max);
+    const W w = static_cast<W>(checked_compat_weight(weight));
+    c = centroid(mean, w);
+    add_weight_checked(total_weight, w);
   }
   return tdigest(false, k, min, max, std::move(centroids), total_weight, vector_t(allocator));
 }

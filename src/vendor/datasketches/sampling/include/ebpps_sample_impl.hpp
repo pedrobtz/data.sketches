@@ -25,6 +25,7 @@
 #include "ebpps_sample.hpp"
 #include "serde.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <limits>
 #include <string>
@@ -40,7 +41,10 @@ ebpps_sample<T,A>::ebpps_sample(uint32_t reserved_size, const A& allocator) :
   partial_item_(),
   data_(allocator)
   {
-    data_.reserve(reserved_size);
+    // The reservation is only a hint; reserving all of k up front made an
+    // empty sketch with a large k (or a 20-byte image claiming one) allocate
+    // gigabytes. The vector grows as items arrive.
+    data_.reserve(std::min<uint32_t>(reserved_size, 1u << 12));
   }
 
 template<typename T, typename A>

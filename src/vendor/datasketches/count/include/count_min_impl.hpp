@@ -409,11 +409,20 @@ auto count_min_sketch<W,A>::deserialize(const void* bytes, size_t size, uint64_t
     throw std::invalid_argument("Incompatible seed hashes: " + std::to_string(seed_hash) + ", "
                                 + std::to_string(compute_seed_hash(seed)));
   }
-  count_min_sketch c(nhashes, nbuckets, seed, allocator);
   const bool is_empty = (flags_byte & (1 << flags::IS_EMPTY)) > 0;
+  // A non-empty image carries its whole table: check the bytes before the
+  // constructor allocates it, so a few bytes cannot demand gigabytes.
+  // nbuckets * nhashes < 2^30 is checked by the constructor.
+  if (!is_empty) {
+    const uint64_t cells = static_cast<uint64_t>(nbuckets) * nhashes;
+    if (cells < (1ULL << 30)) {
+      ensure_minimum_memory(size, PREAMBLE_LONGS_SHORT * sizeof(uint64_t) + sizeof(W) * (1 + cells));
+    }
+  }
+  count_min_sketch c(nhashes, nbuckets, seed, allocator);
   if (is_empty) { return c; } // sketch is empty, no need to read further.
 
-  // preamble (already read) + total weight + table; nbuckets * nhashes < 2^30 was checked by the constructor
+  // preamble (already read) + total weight + table
   ensure_minimum_memory(size, PREAMBLE_LONGS_SHORT * sizeof(uint64_t) + sizeof(W) * (1 + c._sketch_array.size()));
 
   // Long 2 is the weight.

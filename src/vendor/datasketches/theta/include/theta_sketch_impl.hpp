@@ -739,10 +739,25 @@ compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize_v4(
 template<typename A>
 compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize(const void* bytes, size_t size, uint64_t seed, const A& allocator) {
   auto data = compact_theta_sketch_parser<true>::parse(bytes, size, seed, false);
+  // A compact sketch holds hashes in (0, theta), strictly increasing when
+  // ordered. The image is not trusted to: an entry of 0, for one, made the
+  // compressed serializer compute 0 entry bits and write an image that it
+  // then refused to read back.
+  auto check_entries = [&data](const std::vector<uint64_t, A>& entries) {
+    uint64_t previous = 0;
+    for (const uint64_t entry: entries) {
+      if (entry == 0 || entry >= data.theta || (data.is_ordered && entry <= previous)) {
+        throw std::invalid_argument("Possible corruption: compact sketch entry out of range or out of order");
+      }
+      previous = entry;
+    }
+  };
   if (data.entry_bits == 64) { // versions 1 to 3
     const uint64_t* entries = reinterpret_cast<const uint64_t*>(data.entries_start_ptr);
+    std::vector<uint64_t, A> copied(entries, entries + data.num_entries, allocator);
+    check_entries(copied);
     return compact_theta_sketch_alloc(data.is_empty, data.is_ordered, data.seed_hash, data.theta,
-        std::vector<uint64_t, A>(entries, entries + data.num_entries, allocator));
+        std::move(copied));
   } else { // version 4
     std::vector<uint64_t, A> entries(data.num_entries, 0, allocator);
     const uint8_t* ptr = reinterpret_cast<const uint8_t*>(data.entries_start_ptr);
@@ -763,6 +778,7 @@ compact_theta_sketch_alloc<A> compact_theta_sketch_alloc<A>::deserialize(const v
       entries[i] += previous;
       previous = entries[i];
     }
+    check_entries(entries);
     return compact_theta_sketch_alloc(data.is_empty, data.is_ordered, data.seed_hash, data.theta, std::move(entries));
   }
 }

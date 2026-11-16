@@ -96,6 +96,11 @@ CouponHashSet<A>* CouponHashSet<A>::newSet(const void* bytes, size_t len, const 
   if (lgArrInts < hll_constants::LG_INIT_SET_SIZE) {
     lgArrInts = HllUtil<>::computeLgArrInts(SET, couponCount, lgK);
   }
+  // lgArrInts comes from the image and is used as a shift count; a set
+  // larger than 2^lgK slots cannot occur.
+  if (lgArrInts > lgK) {
+    throw std::invalid_argument("Possible corruption: CouponHashSet size exceeds lg_k");
+  }
   // Don't set couponCount in sketch here;
   // we'll set later if updatable, and increment with updates if compact
   const uint32_t couponsInArray = (compactFlag ? couponCount : (1 << lgArrInts));
@@ -103,6 +108,21 @@ CouponHashSet<A>* CouponHashSet<A>::newSet(const void* bytes, size_t len, const 
   if (len < expectedLength) {
     throw std::out_of_range("Byte array too short for sketch. Expected " + std::to_string(expectedLength)
                                 + ", found: " + std::to_string(len));
+  }
+
+  // An updatable image carries the whole slot array and a separate count;
+  // they must agree, or serializing the sketch compactly later writes every
+  // non-empty slot into a buffer sized for the count (heap overflow).
+  if (!compactFlag) {
+    uint32_t nonEmpty = 0;
+    for (uint32_t i = 0; i < couponsInArray; ++i) {
+      uint32_t c;
+      std::memcpy(&c, data + hll_constants::HASH_SET_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
+      if (c != hll_constants::EMPTY) ++nonEmpty;
+    }
+    if (nonEmpty != couponCount) {
+      throw std::invalid_argument("Possible corruption: CouponHashSet count does not match its slots");
+    }
   }
 
   ChsAlloc chsa(allocator);
@@ -163,6 +183,11 @@ CouponHashSet<A>* CouponHashSet<A>::newSet(std::istream& is, const A& allocator)
   const auto couponCount = read<uint32_t>(is);
   if (lgArrInts < hll_constants::LG_INIT_SET_SIZE) {
     lgArrInts = HllUtil<>::computeLgArrInts(SET, couponCount, lgK);
+  }
+  // lgArrInts comes from the image and is used as a shift count; a set
+  // larger than 2^lgK slots cannot occur.
+  if (lgArrInts > lgK) {
+    throw std::invalid_argument("Possible corruption: CouponHashSet size exceeds lg_k");
   }
 
   ChsAlloc chsa(allocator);

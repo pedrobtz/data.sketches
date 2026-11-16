@@ -20,6 +20,7 @@
 #ifndef _AUXHASHMAP_INTERNAL_HPP_
 #define _AUXHASHMAP_INTERNAL_HPP_
 
+#include <cstring>
 #include <stdexcept>
 
 #include "HllUtil.hpp"
@@ -57,17 +58,33 @@ AuxHashMap<A>* AuxHashMap<A>::deserialize(const void* bytes, size_t len,
     lgArrInts = lgAuxArrInts;
   }
   
+  // lgAuxArrInts comes from the image and is used as a shift count below; an
+  // aux table larger than 2^lgConfigK entries cannot occur.
+  if (lgArrInts > lgConfigK) {
+    throw std::invalid_argument("Possible corruption: AuxHashMap size exceeds lg_k");
+  }
   const uint32_t configKmask = (1 << lgConfigK) - 1;
 
-  AuxHashMap<A>* auxHashMap;
-  const uint32_t* auxPtr = static_cast<const uint32_t*>(bytes);
+  // The pairs sit at an arbitrary offset into the image, so they are read with
+  // memcpy rather than through a uint32_t pointer (misaligned access), and the
+  // map is owned by aux_ptr until it is returned, so that a throwing mustAdd()
+  // (a duplicate slot) does not leak it.
+  const uint8_t* auxBytes = static_cast<const uint8_t*>(bytes);
+  auto readPair = [auxBytes](uint32_t i) {
+    uint32_t pair;
+    std::memcpy(&pair, auxBytes + static_cast<size_t>(i) * sizeof(uint32_t), sizeof(pair));
+    return pair;
+  };
+  typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
+  aux_hash_map_ptr aux_ptr;
   if (srcCompact) {
     if (len < auxCount * sizeof(int)) {
       throw std::out_of_range("Input array too small to hold AuxHashMap image");
     }
-    auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
+    AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
+    aux_ptr = aux_hash_map_ptr(auxHashMap, auxHashMap->make_deleter());
     for (uint32_t i = 0; i < auxCount; ++i) {
-      const uint32_t pair = auxPtr[i];
+      const uint32_t pair = readPair(i);
       const uint32_t slotNo = HllUtil<A>::getLow26(pair) & configKmask;
       const uint8_t value = HllUtil<A>::getValue(pair);
       auxHashMap->mustAdd(slotNo, value);
@@ -77,9 +94,10 @@ AuxHashMap<A>* AuxHashMap<A>::deserialize(const void* bytes, size_t len,
     if (len < itemsToRead * sizeof(uint32_t)) {
       throw std::out_of_range("Input array too small to hold AuxHashMap image");
     }
-    auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
+    AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
+    aux_ptr = aux_hash_map_ptr(auxHashMap, auxHashMap->make_deleter());
     for (uint32_t i = 0; i < itemsToRead; ++i) {
-      const uint32_t pair = auxPtr[i];
+      const uint32_t pair = readPair(i);
       if (pair == hll_constants::EMPTY) { continue; }
       const uint32_t slotNo = HllUtil<A>::getLow26(pair) & configKmask;
       const uint8_t value = HllUtil<A>::getValue(pair);
@@ -87,12 +105,11 @@ AuxHashMap<A>* AuxHashMap<A>::deserialize(const void* bytes, size_t len,
     }
   }
 
-  if (auxHashMap->getAuxCount() != auxCount) {
-    make_deleter()(auxHashMap);
+  if (aux_ptr->getAuxCount() != auxCount) {
     throw std::invalid_argument("Deserialized AuxHashMap has wrong number of entries");
   }
 
-  return auxHashMap;                                    
+  return aux_ptr.release();
 }
 
 template<typename A>
@@ -106,6 +123,9 @@ AuxHashMap<A>* AuxHashMap<A>::deserialize(std::istream& is, uint8_t lgConfigK,
     lgArrInts = lgAuxArrInts;
   }
 
+  if (lgArrInts > lgConfigK) {
+    throw std::invalid_argument("Possible corruption: AuxHashMap size exceeds lg_k");
+  }
   AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
   typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
   aux_hash_map_ptr aux_ptr(auxHashMap, auxHashMap->make_deleter());
@@ -131,7 +151,7 @@ AuxHashMap<A>* AuxHashMap<A>::deserialize(std::istream& is, uint8_t lgConfigK,
   }
 
   if (auxHashMap->getAuxCount() != auxCount) {
-    make_deleter()(auxHashMap);
+    // aux_ptr frees the map; freeing it here as well was a double free.
     throw std::invalid_argument("Deserialized AuxHashMap has wrong number of entries");
   }
 

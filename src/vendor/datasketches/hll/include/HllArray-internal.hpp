@@ -136,6 +136,11 @@ HllArray<A>* HllArray<A>::newHll(const void* bytes, size_t len, const A& allocat
   typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
   aux_hash_map_ptr aux_ptr;
   if (auxCount > 0) { // necessarily TgtHllType == HLL_4
+    // Only HLL_4 has an aux map; the image could claim one for another type,
+    // and the cast to Hll4Array below would then be invalid.
+    if (tgtHllType != HLL_4) {
+      throw std::invalid_argument("Possible corruption: aux entries in a non-HLL_4 image");
+    }
     uint8_t auxLgIntArrSize = data[4];
     const size_t offset = hll_constants::HLL_BYTE_ARR_START + arrayBytes;
     const uint8_t* auxDataStart = data + offset;
@@ -152,6 +157,37 @@ HllArray<A>* HllArray<A>::newHll(const void* bytes, size_t len, const A& allocat
   sketch->putNumAtCurMin(numAtCurMin);
 
   std::memcpy(sketch->hllByteArr_.data(), data + hll_constants::HLL_BYTE_ARR_START, arrayBytes);
+
+  if (tgtHllType == HLL_4) {
+    // The HLL_4 array marks a slot whose value moved to the aux map with
+    // AUX_TOKEN, and the aux map holds the absolute value, at least
+    // curMin + AUX_TOKEN. The image carries both separately, so require them
+    // to agree: every token has an entry, and there are no other entries.
+    // Otherwise queries, printing and serialization of the sketch throw or
+    // read entries that are not there. Checked before the map is attached, so
+    // that on failure the sketch and the map are each freed once.
+    const Hll4Array<A>* h4 = static_cast<const Hll4Array<A>*>(sketch);
+    const uint32_t configK = 1u << lgK;
+    uint32_t tokens = 0;
+    bool consistent = true;
+    for (uint32_t slot = 0; slot < configK && consistent; ++slot) {
+      if (h4->getSlot(slot) != hll_constants::AUX_TOKEN) continue;
+      ++tokens;
+      if (auxHashMap == nullptr) { consistent = false; break; }
+      try {
+        if (static_cast<int>(auxHashMap->mustFindValueFor(slot)) < static_cast<int>(curMin) + hll_constants::AUX_TOKEN) {
+          consistent = false;
+        }
+      } catch (const std::invalid_argument&) {
+        consistent = false;
+      }
+    }
+    if (consistent && tokens != auxCount) consistent = false;
+    if (!consistent) {
+      sketch->get_deleter()(sketch);
+      throw std::invalid_argument("Possible corruption: HLL_4 aux entries do not match the array");
+    }
+  }
 
   if (auxHashMap != nullptr) {
     ((Hll4Array<A>*)sketch)->putAuxHashMap(auxHashMap);
@@ -212,6 +248,9 @@ HllArray<A>* HllArray<A>::newHll(std::istream& is, const A& allocator) {
   read(is, sketch->hllByteArr_.data(), sketch->getHllByteArrBytes());
   
   if (auxCount > 0) { // necessarily TgtHllType == HLL_4
+    if (tgtHllType != HLL_4) {
+      throw std::invalid_argument("Possible corruption: aux entries in a non-HLL_4 image");
+    }
     uint8_t auxLgIntArrSize = listHeader[4];
     AuxHashMap<A>* auxHashMap = AuxHashMap<A>::deserialize(is, lgK, auxCount, auxLgIntArrSize, comapctFlag, allocator);
     ((Hll4Array<A>*)sketch)->putAuxHashMap(auxHashMap);

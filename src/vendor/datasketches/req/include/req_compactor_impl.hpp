@@ -502,6 +502,12 @@ auto req_compactor<T, C, A>::deserialize_items(const void* bytes, size_t size, c
 -> std::pair<std::unique_ptr<T, items_deleter>, size_t> {
   const char* ptr = static_cast<const char*>(bytes);
   const char* end_ptr = static_cast<const char*>(bytes) + size;
+  // num comes from the image; every item takes at least one byte of it, so a
+  // larger count is corrupt. Checking before allocating keeps a few bytes from
+  // demanding gigabytes.
+  if (num > size) {
+    throw std::invalid_argument("Possible corruption: more items than bytes in REQ compactor image");
+  }
   A alloc(allocator);
   std::unique_ptr<T, items_deleter> items(alloc.allocate(num), items_deleter(allocator, false, num));
   ptr += serde.deserialize(ptr, end_ptr - ptr, items.get(), num);

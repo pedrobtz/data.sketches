@@ -369,7 +369,21 @@ frequent_items_sketch<T, W, H, E, A> frequent_items_sketch<T, W, H, E, A>::deser
   check_size(lg_cur_size, lg_max_size);
   ensure_minimum_memory(size, preamble_longs * sizeof(uint64_t));
 
-  frequent_items_sketch sketch(lg_max_size, lg_cur_size, equal, allocator);
+  // The map is rebuilt below by updating each item, and it grows on demand up
+  // to lg_max_size, purging only there, so its starting size does not change
+  // the result. Start it no larger than the items need rather than at the
+  // image's lg_cur_size: a few bytes could otherwise demand a map of 2^30
+  // slots. (num_items is checked against the bytes before any is read.)
+  uint8_t lg_start_size = LG_MIN_MAP_SIZE;
+  if (!is_empty) {
+    uint32_t n;
+    std::memcpy(&n, ptr, sizeof(n));
+    while (lg_start_size < lg_cur_size &&
+           static_cast<double>(1ULL << lg_start_size) * 0.75 < n) {  // reverse_purge_hash_map::LOAD_FACTOR
+      ++lg_start_size;
+    }
+  }
+  frequent_items_sketch sketch(lg_max_size, lg_start_size, equal, allocator);
   if (!is_empty) {
     uint32_t num_items;
     ptr += copy_from_mem(ptr, num_items);
@@ -385,6 +399,18 @@ frequent_items_sketch<T, W, H, E, A> frequent_items_sketch<T, W, H, E, A>::deser
     using AllocW = typename std::allocator_traits<A>::template rebind_alloc<W>;
     std::vector<W, AllocW> weights(num_items, 0, allocator);
     ptr += copy_from_mem(ptr, weights.data(), sizeof(W) * num_items);
+    // Every retained item has a positive weight, and together they cannot
+    // exceed the stream's total weight. A zero weight is dropped on the next
+    // round trip, and an excess makes the estimates meaningless.
+    {
+      W sum = 0;
+      for (const W w: weights) {
+        if (!(w > 0) || w > total_weight - sum) {
+          throw std::invalid_argument("Possible corruption: item weights inconsistent with the total weight");
+        }
+        sum += w;
+      }
+    }
     A alloc(allocator);
     std::unique_ptr<T, items_deleter> items(alloc.allocate(num_items), items_deleter(num_items, false, alloc));
     const size_t bytes_remaining = size - (ptr - base);
@@ -442,6 +468,11 @@ void frequent_items_sketch<T, W, H, E, A>::check_size(uint8_t lg_cur_size, uint8
   }
   if (lg_cur_size < LG_MIN_MAP_SIZE) {
     throw std::invalid_argument("Possible corruption: lg_cur_size must not be less than " + std::to_string(LG_MIN_MAP_SIZE) + ": " + std::to_string(lg_cur_size));
+  }
+  // Both are shift counts in the map (1 << lg_cur_size is an int); a map of
+  // 2^30 slots is already far beyond any sketch in practice.
+  if (lg_max_size > 30) {
+    throw std::invalid_argument("Possible corruption: lg_max_size must not exceed 30: " + std::to_string(lg_max_size));
   }
 }
 

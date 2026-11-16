@@ -21,61 +21,65 @@ Vendored dependency: Apache DataSketches C++, header-only
                  0005-serde-no-null-memcpy.patch
                  0006-count-min-serialize-append.patch
                  0007-kll-merge-allocate-first.patch
+                 0008-hll-deserialize-consistency.patch
+                 0009-fi-deserialize-bounds.patch
+                 0010-req-bound-item-count.patch
+                 0011-ebpps-header-and-reserve.patch
+                 0012-count-min-check-size-first.patch
+                 0013-tdigest-deserialize-validation.patch
+                 0014-theta-validate-compact-entries.patch
 
 src/vendor/datasketches/ is the files listed in
 tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
 Apache source release, with exactly the patches above applied: LICENSE, NOTICE
-and every component's include/
-directory. The library is header-only, so nothing else is needed; src/Makevars
-puts each include/ directory on the include path. Tests, benchmarks, Python
-bindings and the CMake build are excluded. tools/vendor/manifest.tsv pins the
-archive and its sha256; tools/vendor/verify re-derives the tree from it and
-fails on any other difference.
+and every component's include/ directory. The library is header-only, so
+nothing else is needed; src/Makevars puts each include/ directory on the
+include path. Tests, benchmarks, Python bindings and the CMake build are
+excluded. tools/vendor/manifest.tsv pins the archive and its sha256;
+tools/vendor/verify re-derives the tree from it and fails on any other
+difference.
 
-The patches close bugs that remain in 5.3.1, and are to be reported
-upstream. 0001-0003 and 0005 are found by tools/fuzz
-(data.sketches issue #33); 0004 and 0007 were found by alloc-failure.yaml
-(#35) and have regression tests in tools/vendor/tests/; 0006 is a compiler
-diagnostic, not a bug.
+The patches fix bugs that remain in 5.3.1, and are to be reported upstream.
+Each patch file begins with what it fixes and how it was found. In short:
 
-0001-hll-validate-lg-k.patch rejects an HLL image whose lg_k lies outside
-[MIN_LOG_K, MAX_LOG_K]. The array, coupon-list and coupon-set deserializers
-used it unchecked as a shift count (undefined behavior for lg_k > 32).
+Deserializing corrupt images (found by tools/fuzz under ASan and UBSan,
+data.sketches issue #33). Every one is reachable from R through a
+constructor's `bytes =`; patched, each raises datasketches_invalid_bytes:
 
-0002-bloom-validate-header.patch rejects a non-empty Bloom filter image
-with the empty-filter preamble, which made the parser read the bit count
-past the bytes it had checked (heap over-read), and one with zero capacity,
-whose first update or query divided by zero (SIGFPE, killing R).
+  0001  HLL: lg_k validated before it is used as a shift count
+  0002  Bloom: header validated (over-read, zero capacity: SIGFPE, 32-bit
+        shift wrap, zero hash functions)
+  0003  EBPPS: item count C validated (NaN or huge: unchecked conversion)
+  0005  serde: no memcpy from a null pointer for an empty sample
+  0008  HLL: aux map and coupon set consistent with the image (shift counts,
+        misaligned reads, leak, double free, heap overflow on write, bad
+        downcast, HLL_4 tokens without aux entries)
+  0009  Frequent Items: sizes bounded, map sized by the items, weights checked
+  0010  REQ: item count checked against the bytes before allocating
+  0011  EBPPS: header consistent; k no longer reserved up front
+  0012  Count-Min: table size checked against the bytes before allocating
+  0013  t-digest: compat k and weights converted checked; weights, min, max
+        and means consistent
+  0014  Theta: compact entries in (0, theta) and ordered
 
-0003-ebpps-validate-item-count.patch rejects an EBPPS image whose stored
-size C is NaN, infinite, or larger than the remaining bytes can hold. The
-deserializer converted C to uint32_t unchecked (undefined behavior) and sized
-an allocation from it.
+Failed allocations (found by alloc-failure.yaml, #35), each with a
+regression test in tools/vendor/tests/:
 
-0004-fi-exception-safe-resize.patch makes reverse_purge_hash_map::resize()
-allocate its three new arrays before assigning any of them, so a
-std::bad_alloc leaves the Frequent Items map intact. It used to leave keys_
-on the new, unconstructed array, and the destructor ran ~K() on garbage.
+  0004  Frequent Items: the hash map resize survives a std::bad_alloc
+  0007  KLL merge (and Theta reset): allocate the new buffer before freeing
+        the old one
 
-0005-serde-no-null-memcpy.patch skips the memcpy in serde<T>::serialize and
-::deserialize when there are no items, since an empty EBPPS sample passes a
-null pointer and memcpy with one is undefined even for zero bytes.
+Compiler diagnostic, not a bug:
 
-0006-count-min-serialize-append.patch builds count_min_sketch::serialize()'s
-output by appending instead of writing through data(); same bytes, but gcc's
-UBSan build no longer reports the writes as out of bounds, a WARNING under
-R CMD check.
-
-0007-kll-merge-allocate-first.patch makes kll_sketch::merge_higher_levels()
-allocate its new items buffer before freeing the old one; a std::bad_alloc
-used to leave items_ dangling, and the destructor freed it twice.
-theta_update_sketch_base::reset(), which had the same order but which the
-package does not call, gets the same fix.
+  0006  Count-Min: serialize() appends instead of writing through data(),
+        which gcc's UBSan build reported as out of bounds, a WARNING under
+        R CMD check
 
 Updating: change the tag, commit, version_string, archive and archive_sha256
 columns of tools/vendor/manifest.tsv (check the archive against the .sha512
 Apache publishes beside it), regenerate the keep list from the new release's
 include/ directories if components gained or lost files, and run
-tools/vendor/fetch. Then update this file, R/datasketches-version.R,
+tools/vendor/fetch, rebasing or dropping each patch the release makes
+unnecessary. Then update this file, R/datasketches-version.R,
 inst/COPYRIGHTS and DESCRIPTION's Authors@R against the new NOTICE and
-LICENSE, and run tools/vendor/verify and the test suite.
+LICENSE, and run tools/vendor/verify, tools/vendor/tests/ and the test suite.
