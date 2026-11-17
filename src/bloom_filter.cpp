@@ -1,4 +1,6 @@
+#include <climits>
 #include <cstdint>
+#include <stdexcept>
 #include <string>
 #include <vector>
 
@@ -235,6 +237,43 @@ cpp11::raws bf_serialize_cpp(cpp11::sexp filter) {
 cpp11::sexp bf_deserialize_cpp(cpp11::raws bytes) {
   std::vector<uint8_t> buffer(bytes.begin(), bytes.end());
   return wrap_bf(datasketches::bloom_filter::deserialize(buffer.data(), buffer.size()));
+}
+
+// The largest filter the library builds and reads back, in bits, so that R
+// validates sizes against the library's own limit (#32). MAX_FILTER_SIZE_BITS is
+// private, so it is computed from its definition in bloom_filter.hpp,
+// (INT32_MAX - MAX_HEADER_SIZE_BYTES) * sizeof(uint64_t) with a 32-byte
+// header, and confirmed against the library, which enforces it in
+// suggest_num_hashes(): the limit is accepted and one bit more is not (with
+// as many items as bits, so the suggested count itself stays small). If an
+// update changes the limit, this fails loudly instead of drifting.
+[[cpp11::register]]
+double bf_max_filter_bits_cpp() {
+  static const uint64_t max_bits = [] {
+    const uint64_t candidate = (static_cast<uint64_t>(INT32_MAX) - 32) * sizeof(uint64_t);
+    bool accepted = true, rejected = false;
+    try {
+      datasketches::bloom_filter::builder::suggest_num_hashes(candidate, candidate);
+    } catch (const std::invalid_argument&) {
+      accepted = false;
+    }
+    try {
+      datasketches::bloom_filter::builder::suggest_num_hashes(candidate, candidate + 1);
+    } catch (const std::invalid_argument&) {
+      rejected = true;
+    }
+    if (!accepted || !rejected) {
+      throw std::logic_error("bloom_filter: the library's maximum filter size is not the expected one");
+    }
+    // The constructor checks the requested size against the limit and then
+    // rounds it up to whole 64-bit words, and the limit is not a multiple of
+    // 64 (17179868920 % 64 == 56): a request within 56 bits of it builds a
+    // filter 8 bits over, whose serialization the library then refuses to
+    // read (patch 0002). The usable maximum is the limit rounded down to a
+    // whole word, so every filter R allows also round-trips.
+    return (candidate / 64) * 64;
+  }();
+  return static_cast<double>(max_bits);
 }
 
 [[cpp11::register]]

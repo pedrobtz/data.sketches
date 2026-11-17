@@ -1,0 +1,63 @@
+# gctorture over the R test suite: a garbage collection at every allocation,
+# so an unprotected SEXP in the cpp11 bridge is collected while still in use.
+# Quick (a coarse step, time-boxed) on pull requests; step 20, the full run,
+# weekly and on demand.
+on:
+  pull_request:
+  schedule:
+    - cron: "21 2 * * 6"
+  workflow_dispatch:
+
+name: gctorture
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gctorture:
+    uses: pedrobtz/r-actions/.github/workflows/gctorture.yml@v1
+    with:
+      profile: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'full' || 'quick' }}
+      test-timeout-minutes: ${{ (github.event_name != 'schedule' && github.event_name != 'workflow_dispatch') && 10 || 0 }}
+      timeout-minutes: 240
+
+  # A red scheduled run otherwise notifies only whoever last edited the cron
+  # line. This keeps one open `gctorture` issue while the run is failing.
+  report:
+    needs: gctorture
+    if: ${{ always() && github.event_name == 'schedule' && needs.gctorture.result != 'skipped' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      issues: write
+    steps:
+      - name: Open, update or close the gctorture issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RESULT: ${{ needs.gctorture.result }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -eu
+          open=$(gh issue list --repo "$REPO" --label gctorture --state open \
+                   --json number --jq '.[0].number // empty')
+          if [ "$RESULT" = success ]; then
+            if [ -n "$open" ]; then
+              gh issue close "$open" --repo "$REPO" --comment "Green again on ${SHA:0:7}: $RUN"
+            fi
+            exit 0
+          fi
+          body="Scheduled gctorture at step 20 ended \`$RESULT\` on ${SHA:0:7}: $RUN"
+          if [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$REPO" --body "$body"
+          else
+            gh label create gctorture --repo "$REPO" --color B60205 \
+              --description "Scheduled gctorture run is failing" --force
+            gh issue create --repo "$REPO" --label gctorture \
+              --title "Scheduled gctorture fails" --body "$body"
+          fi

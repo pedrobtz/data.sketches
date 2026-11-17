@@ -412,3 +412,91 @@ test_that("bloom_filter_suggest_num_filter_bits() and bloom_filter_suggest_num_h
     class = "datasketches_invalid_num_bits"
   )
 })
+
+# #32: sizes are checked against the library's own maximum, with classed
+# errors that say what to change. None of these builds a large filter: the
+# accepted side of each bound is checked through the R validator, so the test
+# never allocates the 2 GiB a filter at the limit would take.
+
+test_that("the size limit is the library's, rounded down to whole 64-bit words", {
+  # MAX_FILTER_SIZE_BITS is 17179868920, 56 past a multiple of 64; the
+  # library rounds a size up to whole words, so the usable maximum is the
+  # word boundary below it.
+  max_bits <- bloom_max_bits()
+  expect_identical(max_bits, floor((2^31 - 1 - 32) * 8 / 64) * 64)
+  expect_identical(max_bits %% 64, 0)
+})
+
+test_that("a filter at the limit's word boundary serializes into bytes that read back", {
+  # Builds and reads back a 2 GiB filter: opt-in, so that neither CRAN nor
+  # the valgrind and gctorture jobs pay for it.
+  skip_if_not(
+    identical(Sys.getenv("DS_LARGE_ALLOC_TESTS"), "true"),
+    "set DS_LARGE_ALLOC_TESTS=true to build a filter at the size limit"
+  )
+  bf <- bloom_filter(num_bits = bloom_max_bits(), num_hashes = 1)
+  expect_identical(bf$capacity(), bloom_max_bits())
+  expect_identical(bloom_filter(bytes = bf$serialize())$capacity(), bloom_max_bits())
+})
+
+test_that("num_bits is accepted at the limit and refused one bit past it", {
+  max_bits <- bloom_max_bits()
+  expect_identical(check_bloom_num_bits(max_bits), max_bits)
+  expect_identical(check_bloom_num_bits(max_bits - 1), max_bits - 1)
+  expect_error(
+    bloom_filter(num_bits = max_bits + 1, num_hashes = 3),
+    class = "datasketches_invalid_num_bits"
+  )
+  err <- tryCatch(bloom_filter(num_bits = 2^40, num_hashes = 3), error = identity)
+  expect_s3_class(err, "datasketches_error")
+  expect_match(conditionMessage(err), "17,179,868,864 bits (2.0 GiB)", fixed = TRUE)
+  expect_no_match(conditionMessage(err), "2^63", fixed = TRUE)
+})
+
+test_that("max_items is accepted while its filter fits and refused past it", {
+  fpp <- 0.01
+  max_bits <- bloom_max_bits()
+  # The largest max_items whose suggested filter fits, by the library's rule.
+  lo <- 1
+  hi <- 2^33
+  while (hi - lo > 1) {
+    mid <- floor((lo + hi) / 2)
+    if (bloom_filter_suggest_num_filter_bits(mid, fpp) <= max_bits) lo <- mid else hi <- mid
+  }
+  expect_true(check_bloom_accuracy_fits(lo, fpp))
+  err <- tryCatch(bloom_filter(max_items = lo + 1, fpp = fpp), error = identity)
+  expect_s3_class(err, "datasketches_invalid_max_items")
+  expect_match(conditionMessage(err), "Lower `max_items` or raise `fpp`", fixed = TRUE)
+  # The sizing helper stays a calculator: it reports what would be needed.
+  expect_gt(bloom_filter_suggest_num_filter_bits(lo + 1, fpp), max_bits)
+})
+
+test_that("suggest_num_hashes() refuses a num_bits past the limit, classed", {
+  expect_error(
+    bloom_filter_suggest_num_hashes(1000, bloom_max_bits() + 1),
+    class = "datasketches_invalid_num_bits"
+  )
+})
+
+test_that("suggest_num_hashes() tops out at the 65535 hashes a filter stores", {
+  # ceil(bits / items * ln 2) passes 65535 between 94547 and 94548 bits per
+  # item; the library converted it to uint16_t unchecked (patch 0018).
+  expect_identical(bloom_filter_suggest_num_hashes(1, 94546), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, 94548), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, 1e9), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(1, bloom_max_bits()), 65535L)
+  expect_identical(bloom_filter_suggest_num_hashes(2, 94546), 32768L)
+})
+
+test_that("create_native() classes what the library rejects, and passes ours through", {
+  err <- tryCatch(create_native(stop("native says no")), error = identity)
+  expect_s3_class(err, "datasketches_invalid_args")
+  expect_s3_class(err, "datasketches_error")
+  expect_match(conditionMessage(err$parent), "native says no", fixed = TRUE)
+  ours <- tryCatch(
+    create_native(abort_invalid("already classed", "datasketches_invalid_k")),
+    error = identity
+  )
+  expect_s3_class(ours, "datasketches_invalid_k")
+  expect_null(ours$parent)
+})

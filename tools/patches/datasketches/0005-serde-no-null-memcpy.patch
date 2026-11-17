@@ -1,0 +1,31 @@
+Do not call memcpy with a null pointer in the trivially-copyable serde.
+
+serde<T>::serialize and ::deserialize call memcpy(ptr, items, sizeof(T) * num)
+unconditionally. An EBPPS sample with no full items passes items == nullptr,
+and memcpy with a null pointer is undefined even for zero bytes (UBSan,
+found by data.sketches tools/fuzz on ebpps $serialize()). Skip the copy when
+there is nothing to copy, as 5.3.1 already does in copy_from_mem and
+copy_to_mem (#548).
+
+--- a/common/include/serde.hpp	2026-11-16 19:12:24
++++ b/common/include/serde.hpp	2026-11-16 19:12:24
+@@ -109,7 +109,9 @@
+   size_t serialize(void* ptr, size_t capacity, const T* items, unsigned num) const {
+     const size_t bytes_written = sizeof(T) * num;
+     check_memory_size(bytes_written, capacity);
+-    memcpy(ptr, items, bytes_written);
++    // memcpy with a null pointer is undefined even for zero bytes, and an
++    // empty sample passes items == nullptr (as copy_to_mem guards, #548).
++    if (bytes_written > 0) memcpy(ptr, items, bytes_written);
+     return bytes_written;
+   }
+ 
+@@ -117,7 +119,7 @@
+   size_t deserialize(const void* ptr, size_t capacity, T* items, unsigned num) const {
+     const size_t bytes_read = sizeof(T) * num;
+     check_memory_size(bytes_read, capacity);
+-    memcpy(items, ptr, bytes_read);
++    if (bytes_read > 0) memcpy(items, ptr, bytes_read);
+     return bytes_read;
+   }
+ 

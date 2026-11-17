@@ -19,8 +19,10 @@ bloom_filter(
 filter with.}
 
 \item{max_items}{Target maximum number of distinct items, a single positive
-whole number up to \code{2^53}. Must be supplied together with \code{fpp}, and
-cannot be combined with \code{num_bits}/\code{num_hashes}. Must not be set when
+whole number up to \code{2^53}. The filter it needs at \code{fpp} must fit the
+library's maximum of 17,179,868,864 bits (2 GiB); a larger one raises
+\code{datasketches_invalid_max_items}. Must be supplied together with \code{fpp},
+and cannot be combined with \code{num_bits}/\code{num_hashes}. Must not be set when
 \code{bytes} is supplied.}
 
 \item{fpp}{Target false-positive probability, a single number in \verb{(0, 1]}.
@@ -28,8 +30,10 @@ Must be supplied together with \code{max_items}. Must not be set when \code{byte
 is supplied.}
 
 \item{num_bits}{Number of bits in the filter, a single positive whole number
-up to \code{2^53}. Must be supplied together with \code{num_hashes}, and cannot be
-combined with \code{max_items}/\code{fpp}. Must not be set when \code{bytes} is supplied.}
+up to the library's maximum of 17,179,868,864 (2 GiB); a larger one raises
+\code{datasketches_invalid_num_bits}. Must be supplied together with
+\code{num_hashes}, and cannot be combined with \code{max_items}/\code{fpp}. Must not be
+set when \code{bytes} is supplied.}
 
 \item{num_hashes}{Number of hash functions applied per item, a single whole
 number in \verb{[1, 65535]}. Must be supplied together with \code{num_bits}. Must

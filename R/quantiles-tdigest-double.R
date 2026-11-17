@@ -38,7 +38,7 @@ tdigest_double_sketch_generator <- R6Class(
         private$ptr <- deserialize_native(td_deserialize_cpp(bytes))
       } else {
         k <- if (is.null(k)) 200L else check_tdigest_k(k)
-        private$ptr <- td_create_cpp(k)
+        private$ptr <- create_native(td_create_cpp(k))
         if (!is.null(x)) {
           self$update(x)
         }

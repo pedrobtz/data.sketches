@@ -65,7 +65,7 @@ varopt_sketch_generator <- R6Class(
           check_varopt_type(type)
         }
         k <- if (is.null(k)) 256L else check_varopt_k(k)
-        private$ptr <- vo_create_cpp(k, type == "character")
+        private$ptr <- create_native(vo_create_cpp(k, type == "character"))
         if (!is.null(x)) {
           self$update(x, weight)
         } else if (!is.null(weight)) {
@@ -80,7 +80,7 @@ varopt_sketch_generator <- R6Class(
 
     # Accepts numeric or character input for `x`, depending on the item type
     # the sketch was created with; an `x` of the wrong type raises
-    # `datasketches_invalid_input`. `weight` is a non-negative, finite number
+    # `datasketches_invalid_input`. `weight` is a positive, finite number
     # or a vector of such values matching `length(x)`, defaulting to `1`.
     # `NA`/`NaN`/`NA_character_` in `x` are silently ignored (and the
     # corresponding `weight` dropped), matching the missing-value policy used
@@ -294,7 +294,7 @@ varopt_sketch_generator <- R6Class(
 #' @param x Optional numeric or character vector of items to update the new
 #'   sketch with.
 #' @param weight Optional weight(s) for each element of `x`: a single
-#'   non-negative, finite number, or a vector of such values matching
+#'   positive, finite number, or a vector of such values matching
 #'   `length(x)`. Defaults to `1`. Cannot be set without `x`.
 #' @param k Maximum sample size, a single whole number in `[1, 2^31 - 2]`.
 #'   Defaults to `256`. Must not be set when `bytes` is supplied.

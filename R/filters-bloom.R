@@ -82,7 +82,7 @@ bloom_filter_generator <- R6Class(
           }
           num_bits <- check_bloom_num_bits(num_bits)
           num_hashes <- check_bloom_num_hashes(num_hashes)
-          private$ptr <- bf_create_by_size_cpp(num_bits, num_hashes, seed)
+          private$ptr <- create_native(bf_create_by_size_cpp(num_bits, num_hashes, seed))
         } else {
           if (is.null(max_items) && !is.null(fpp)) {
             abort_invalid(
@@ -102,7 +102,8 @@ bloom_filter_generator <- R6Class(
             check_bloom_max_items(max_items)
           }
           fpp <- if (is.null(fpp)) 0.01 else check_bloom_fpp(fpp)
-          private$ptr <- bf_create_by_accuracy_cpp(max_items, fpp, seed)
+          check_bloom_accuracy_fits(max_items, fpp)
+          private$ptr <- create_native(bf_create_by_accuracy_cpp(max_items, fpp, seed))
         }
 
         if (!is.null(x)) {
@@ -367,15 +368,19 @@ bloom_filter_generator <- R6Class(
 #' @param x Optional numeric or character vector of items to update the new
 #'   filter with.
 #' @param max_items Target maximum number of distinct items, a single positive
-#'   whole number up to `2^53`. Must be supplied together with `fpp`, and
-#'   cannot be combined with `num_bits`/`num_hashes`. Must not be set when
+#'   whole number up to `2^53`. The filter it needs at `fpp` must fit the
+#'   library's maximum of 17,179,868,864 bits (2 GiB); a larger one raises
+#'   `datasketches_invalid_max_items`. Must be supplied together with `fpp`,
+#'   and cannot be combined with `num_bits`/`num_hashes`. Must not be set when
 #'   `bytes` is supplied.
 #' @param fpp Target false-positive probability, a single number in `(0, 1]`.
 #'   Must be supplied together with `max_items`. Must not be set when `bytes`
 #'   is supplied.
 #' @param num_bits Number of bits in the filter, a single positive whole number
-#'   up to `2^53`. Must be supplied together with `num_hashes`, and cannot be
-#'   combined with `max_items`/`fpp`. Must not be set when `bytes` is supplied.
+#'   up to the library's maximum of 17,179,868,864 (2 GiB); a larger one raises
+#'   `datasketches_invalid_num_bits`. Must be supplied together with
+#'   `num_hashes`, and cannot be combined with `max_items`/`fpp`. Must not be
+#'   set when `bytes` is supplied.
 #' @param num_hashes Number of hash functions applied per item, a single whole
 #'   number in `[1, 65535]`. Must be supplied together with `num_bits`. Must
 #'   not be set when `bytes` is supplied.
@@ -450,12 +455,14 @@ bloom_filter <- function(
 #'   whole number up to `2^53`.
 #' @param fpp Target false-positive probability, a single number in `(0, 1]`.
 #' @param num_bits Number of bits in the filter, a single positive whole number
-#'   up to `2^53`.
+#'   up to the library's maximum of 17,179,868,864 (2 GiB).
 #'
 #' @return A single number: `bloom_filter_suggest_num_filter_bits()` returns
 #'   the suggested `num_bits` (a double, which may exceed
 #'   `.Machine$integer.max`); `bloom_filter_suggest_num_hashes()` returns the
-#'   suggested `num_hashes` (an integer).
+#'   suggested `num_hashes` (an integer, at most 65535). The suggested
+#'   `num_bits` is the library's sizing rule and is not capped: above the
+#'   maximum filter size, `bloom_filter()` refuses it.
 #'
 #' @examples
 #' num_bits <- bloom_filter_suggest_num_filter_bits(1000, 0.01)

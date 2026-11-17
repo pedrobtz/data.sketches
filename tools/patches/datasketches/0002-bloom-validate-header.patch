@@ -1,0 +1,87 @@
+Validate the header of a non-empty Bloom filter.
+
+Four checks, all on deserializing a filter whose empty flag is clear, all
+found by data.sketches tools/fuzz:
+
+- A header with the 3-long empty preamble passes the minimum-size check for
+  24 bytes, then num_bits_set is read at offset 24: a heap over-read (ASan).
+- num_longs = 0 builds a filter of zero capacity through the constructor
+  that does not validate it; the first update() or query() then takes a
+  hash modulo zero (SIGFPE), and its serialization is rejected on reading.
+- num_longs << 3 and << 6 were computed in 32 bits, so num_longs =
+  0x80000000 wrapped to zero capacity past the check above; the shifts are
+  now 64-bit, in the stream overload too, and the library's own
+  MAX_FILTER_SIZE_BITS applies.
+- num_hashes = 0, which the same constructor does not check either.
+
+--- a/filters/include/bloom_filter_impl.hpp	2026-11-16 21:03:57
++++ b/filters/include/bloom_filter_impl.hpp	2026-11-16 21:03:57
+@@ -305,13 +305,13 @@
+ 
+   // if empty, stop reading
+   if (is_empty) {
+-    return bloom_filter_alloc<A>(num_longs << 6, num_hashes, seed, allocator);
++    return bloom_filter_alloc<A>((static_cast<uint64_t>(num_longs) << 6), num_hashes, seed, allocator);
+   }
+ 
+   const uint64_t raw_num_bits_set = read<uint64_t>(is);
+ 
+   // allocate memory
+-  const uint64_t num_bytes = num_longs << 3;
++  const uint64_t num_bytes = (static_cast<uint64_t>(num_longs) << 3);
+   AllocUint8 alloc(allocator);
+   uint8_t* bit_array = alloc.allocate(num_bytes);
+   if (bit_array == nullptr) {
+@@ -329,7 +329,7 @@
+   }
+ 
+   // pass to constructor
+-  return bloom_filter_alloc<A>(seed, num_hashes, false, true, false, num_longs << 6, num_bits_set, bit_array, nullptr, allocator);
++  return bloom_filter_alloc<A>(seed, num_hashes, false, true, false, (static_cast<uint64_t>(num_longs) << 6), num_bits_set, bit_array, nullptr, allocator);
+ }
+ 
+ template<typename A>
+@@ -389,13 +389,32 @@
+   if (wrap && is_empty && !read_only) {
+     throw std::invalid_argument("Cannot wrap an empty filter for writing");
+   } else if (is_empty) {
+-    return bloom_filter_alloc<A>(num_longs << 6, num_hashes, seed, allocator);
++    return bloom_filter_alloc<A>((static_cast<uint64_t>(num_longs) << 6), num_hashes, seed, allocator);
+   }
+ 
++  // A non-empty filter carries the standard preamble; with the empty one the
++  // bit count below would be read past the bytes checked above.
++  if (prelongs != PREAMBLE_LONGS_STANDARD) {
++    throw std::invalid_argument("Possible corruption: non-empty filter with an empty-filter preamble");
++  }
++  // A non-empty filter needs bits: with none, every update and query takes a
++  // hash modulo zero.
++  // num_longs is a 32-bit count of 64-bit words: widen before scaling it, or
++  // num_longs << 3 wraps to zero (0x80000000 << 3) and builds a filter of
++  // zero capacity after all; and the library's own size limit applies.
++  if (num_longs == 0 || (static_cast<uint64_t>(num_longs) << 6) > MAX_FILTER_SIZE_BITS) {
++    throw std::invalid_argument("Possible corruption: non-empty filter with zero or excessive capacity");
++  }
++  // The constructor this path uses does not check num_hashes; with none, the
++  // filter answers nothing and its serialization is refused on reading.
++  if (num_hashes == 0) {
++    throw std::invalid_argument("Possible corruption: non-empty filter with no hash functions");
++  }
++
+   uint64_t raw_num_bits_set;
+   ptr += copy_from_mem(ptr, raw_num_bits_set);
+ 
+-  const uint64_t num_bytes = num_longs << 3;
++  const uint64_t num_bytes = (static_cast<uint64_t>(num_longs) << 3);
+   ensure_minimum_memory(end_ptr - ptr, num_bytes);
+   const uint64_t num_bits_set = validate_bloom_filter_num_bits_set(
+     raw_num_bits_set, const_cast<uint8_t*>(ptr), num_bytes, DIRTY_BITS_VALUE);
+@@ -417,7 +436,7 @@
+   }
+ 
+   // pass to constructor -- !wrap == is_owned_
+-  return bloom_filter_alloc<A>(seed, num_hashes, false, !wrap, read_only, num_longs << 6, num_bits_set, bit_array, memory, allocator);
++  return bloom_filter_alloc<A>(seed, num_hashes, false, !wrap, read_only, (static_cast<uint64_t>(num_longs) << 6), num_bits_set, bit_array, memory, allocator);
+ }
+ 
+ template<typename A>

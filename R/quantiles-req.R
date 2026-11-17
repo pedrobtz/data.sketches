@@ -50,7 +50,7 @@ req_sketch_generator <- R6Class(
       } else {
         k <- if (is.null(k)) 12L else check_req_k(k)
         hra <- if (is.null(hra)) TRUE else check_flag(hra, "hra")
-        private$ptr <- req_create_cpp(k, hra)
+        private$ptr <- create_native(req_create_cpp(k, hra))
         if (!is.null(x)) {
           self$update(x)
         }

@@ -53,7 +53,7 @@ cpc_sketch_generator <- R6Class(
         } else {
           check_lg_k(lg_k, min = 4L, max = 26L)
         }
-        private$ptr <- cpc_create_cpp(lg_k, seed)
+        private$ptr <- create_native(cpc_create_cpp(lg_k, seed))
         if (!is.null(x)) {
           self$update(x)
         }

@@ -1,0 +1,62 @@
+# Coverage-guided fuzzing of every `bytes =` path: the upstream deserialize()
+# each family's binding calls, on the payload an R user hands over. The
+# harness and its round-trip oracle are in tools/fuzz/; the seeds, one per
+# family and state, come from tools/fuzz/make-corpus.R.
+on:
+  pull_request:
+  schedule:
+    - cron: "31 2 * * 6"
+  workflow_dispatch:
+
+name: fuzz
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  fuzz:
+    uses: pedrobtz/r-actions/.github/workflows/fuzz.yml@v1
+    with:
+      harness: tools/fuzz/harness.cpp
+      sources: tools/fuzz/targets.cpp
+      # The library is header-only C++; --driver-mode=g++ makes the
+      # workflow's `clang` compile and link it as C++. The -I list is
+      # src/Makevars'.
+      cflags: >-
+        --driver-mode=g++ -std=c++17 -g -O1 -fno-omit-frame-pointer
+        -Isrc/vendor/datasketches/common/include
+        -Isrc/vendor/datasketches/count/include
+        -Isrc/vendor/datasketches/cpc/include
+        -Isrc/vendor/datasketches/fi/include
+        -Isrc/vendor/datasketches/filters/include
+        -Isrc/vendor/datasketches/hll/include
+        -Isrc/vendor/datasketches/kll/include
+        -Isrc/vendor/datasketches/quantiles/include
+        -Isrc/vendor/datasketches/req/include
+        -Isrc/vendor/datasketches/sampling/include
+        -Isrc/vendor/datasketches/tdigest/include
+        -Isrc/vendor/datasketches/theta/include
+        -Isrc/vendor/datasketches/tuple/include
+      seed-corpus: tools/fuzz/corpus
+      max-total-time: ${{ github.event_name == 'schedule' && 1800 || 120 }}
+      timeout-minutes: 40
+
+  # One issue per distinct finding, labelled fuzz, with the sanitizer's report
+  # and the crashing input. A finding's issue is closed by its fix, never by a
+  # green run.
+  report:
+    needs: fuzz
+    if: ${{ always() && github.event_name == 'schedule' && needs.fuzz.result != 'skipped' }}
+    permissions:
+      issues: write
+    uses: pedrobtz/r-actions/.github/workflows/report.yml@v1
+    with:
+      name: fuzz
+      result: ${{ needs.fuzz.result }}
+      finding: ${{ needs.fuzz.outputs.finding }}
+      key: ${{ needs.fuzz.outputs.finding-key }}
+      details: ${{ needs.fuzz.outputs.report }}

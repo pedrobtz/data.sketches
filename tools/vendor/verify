@@ -1,0 +1,123 @@
+#!/bin/sh
+# Check that src/vendor/ is exactly what tools/vendor/manifest.tsv describes.
+#
+#   tools/vendor/verify             every check, including re-deriving the
+#                                   tree from the pinned upstream archive
+#                                   (needs the network; CI runs this)
+#   tools/vendor/verify --offline   every check but the re-derivation
+#
+# Fails if a vendored file was edited, added or removed without going through
+# tools/vendor/fetch, if the tree is not upstream plus exactly the declared
+# patches, or if src/Makevars, R/datasketches-version.R, inst/COPYRIGHTS or
+# src/vendor/PROVENANCE disagree with the manifest.
+set -eu
+
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
+cd "$ROOT"
+MANIFEST=tools/vendor/manifest.tsv
+. tools/vendor/common.sh
+
+offline=0
+[ "${1:-}" = "--offline" ] && offline=1
+
+status=0
+fail() {
+    printf 'FAIL %s\n' "$*" >&2
+    status=1
+}
+
+src=datasketches
+sums=tools/vendor/checksums.sha256
+[ -f "$sums" ] || { fail "missing $sums; run tools/vendor/record"; exit 1; }
+
+# 1. Every recorded file still hashes to the recorded value.
+while read -r want path; do
+    [ -n "$want" ] || continue
+    if [ ! -f "$path" ]; then
+        fail "missing vendored file: $path"
+    elif [ "$(sha256_of "$path")" != "$want" ]; then
+        fail "modified vendored file: $path"
+    fi
+done < "$sums"
+
+# 2. No vendored file the checksums do not know about.
+for f in $(vendored_files "$src"); do
+    grep -q "  $f\$" "$sums" || fail "unrecorded vendored file: $f"
+done
+
+# 3. src/Makevars and src/Makevars.win put exactly the vendored components'
+#    include/ directories on the path: a component vendored but not on the
+#    path ships dead headers, and the reverse does not compile.
+vendored_dirs=$(keep_pairs "$src" | awk '{ print $2 }' |
+                    sed -n 's#^\([a-z_]*\)/include/.*#vendor/datasketches/\1/include#p' |
+                    LC_ALL=C sort -u)
+for mk in src/Makevars src/Makevars.win; do
+    used=$(sed 's/#.*//' "$mk" | grep -oE '\-Ivendor/datasketches/[a-z_]+/include' |
+               sed 's/^-I//' | LC_ALL=C sort -u)
+    [ "$used" = "$vendored_dirs" ] ||
+        fail "$mk include path and tools/vendor/keep/$src.txt disagree"
+done
+cmp -s src/Makevars src/Makevars.win || fail "src/Makevars and src/Makevars.win differ"
+
+# 4. The version the R side reports, the provenance record and the
+#    attribution all name the manifest's release.
+version=$(manifest_field "$src" version_string)
+grep -q "^\.datasketches_native_version <- \"$version\"\$" R/datasketches-version.R ||
+    fail "R/datasketches-version.R does not declare version $version"
+grep -q "^  Version: *$version\$" src/vendor/PROVENANCE ||
+    fail "src/vendor/PROVENANCE does not record version $version"
+grep -q "$(manifest_field "$src" commit)" src/vendor/PROVENANCE ||
+    fail "src/vendor/PROVENANCE does not record the manifest's commit"
+grep -q "$(manifest_field "$src" archive_sha256)" src/vendor/PROVENANCE ||
+    fail "src/vendor/PROVENANCE does not record the archive's sha256"
+grep -q "version $version" inst/COPYRIGHTS ||
+    fail "inst/COPYRIGHTS does not name version $version"
+
+# 5. The patch set agrees across the manifest, tools/patches/,
+#    src/vendor/PROVENANCE and inst/COPYRIGHTS, in every direction.
+declared_patches=$(p=$(manifest_field "$src" patches)
+                   [ "$p" = "-" ] || printf '%s\n' "$p" | tr ',' '\n')
+declared_patches=$(printf '%s\n' "$declared_patches" | grep -v '^$' | LC_ALL=C sort -u || true)
+for p in $declared_patches; do
+    [ -f "tools/patches/$src/$p" ] ||
+        fail "the manifest declares $p, which is not under tools/patches/$src/"
+    grep -qF "$p" inst/COPYRIGHTS || fail "inst/COPYRIGHTS does not name $p"
+    grep -qF "$p" src/vendor/PROVENANCE || fail "src/vendor/PROVENANCE does not name $p"
+done
+for f in $(find tools/patches -type f -name '*.patch' | LC_ALL=C sort); do
+    printf '%s\n' "$declared_patches" | grep -qx "$(basename "$f")" ||
+        fail "$f is not declared in the manifest, so fetch would not apply it"
+done
+if [ -z "$declared_patches" ]; then
+    grep -q "^  Local patches: none" src/vendor/PROVENANCE ||
+        fail "src/vendor/PROVENANCE does not say the tree has no local patches"
+fi
+
+# 6. Re-derive the tree from the pinned archive plus exactly the declared
+#    patches, and require it to match the committed tree byte for byte.
+if [ "$offline" -eq 0 ]; then
+    work=$(mktemp -d)
+    trap 'rm -rf "$work"' EXIT
+    tools/vendor/fetch --into "$work" >/dev/null ||
+        { fail "tools/vendor/fetch could not re-derive the tree"; exit 1; }
+    (cd "$work" && find "$src" -type f | LC_ALL=C sort) > "$work/derived.txt"
+    (cd src/vendor && vendored_files "$src" .) | sed 's#^\./##' > "$work/committed.txt"
+    if ! cmp -s "$work/derived.txt" "$work/committed.txt"; then
+        fail "src/vendor/$src does not hold the files fetch derives:"
+        diff "$work/derived.txt" "$work/committed.txt" | sed 's/^/    /' >&2
+    fi
+    while read -r f; do
+        [ -f "src/vendor/$f" ] || continue
+        cmp -s "$work/$f" "src/vendor/$f" ||
+            fail "src/vendor/$f differs from upstream plus the declared patches"
+    done < "$work/derived.txt"
+fi
+
+if [ "$status" -eq 0 ]; then
+    if [ "$offline" -eq 1 ]; then
+        printf 'ok  vendored tree matches %s (offline)\n' "$MANIFEST"
+    else
+        printf 'ok  vendored tree is upstream plus the declared patches\n'
+    fi
+fi
+exit "$status"

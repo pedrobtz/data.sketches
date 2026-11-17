@@ -17,13 +17,15 @@ whole number up to \code{2^53}.}
 \item{fpp}{Target false-positive probability, a single number in \verb{(0, 1]}.}
 
 \item{num_bits}{Number of bits in the filter, a single positive whole number
-up to \code{2^53}.}
+up to the library's maximum of 17,179,868,864 (2 GiB).}
 }
 \value{
 A single number: \code{bloom_filter_suggest_num_filter_bits()} returns
 the suggested \code{num_bits} (a double, which may exceed
 \code{.Machine$integer.max}); \code{bloom_filter_suggest_num_hashes()} returns the
-suggested \code{num_hashes} (an integer).
+suggested \code{num_hashes} (an integer, at most 65535). The suggested
+\code{num_bits} is the library's sizing rule and is not capped: above the
+maximum filter size, \code{bloom_filter()} refuses it.
 }
 \description{
 Helpers that translate a target accuracy into Bloom filter constructor

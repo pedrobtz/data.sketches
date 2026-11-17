@@ -56,7 +56,7 @@ hll_sketch_generator <- R6Class(
       } else {
         lg_k <- if (is.null(lg_k)) 12L else check_lg_k(lg_k)
         type_int <- if (is.null(type)) 0L else check_hll_type(type)
-        private$ptr <- hll_create_cpp(lg_k, type_int)
+        private$ptr <- create_native(hll_create_cpp(lg_k, type_int))
         if (!is.null(x)) {
           self$update(x)
         }

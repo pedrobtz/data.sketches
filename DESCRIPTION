@@ -4,14 +4,20 @@ Version: 0.1.1.9000
 Authors@R: c(
     person("Pedro", "Baltazar", email = "pedrobtz@gmail.com",
            role = c("aut", "cre", "cph")),
-    person("The Apache Software Foundation", role = "ctb",
-           comment = "Author of bundled Apache DataSketches C++ code"),
-    person("Stephan", "Brumme", role = "ctb",
-           comment = "Author of bundled xxhash64.h code"),
+    person("The Apache Software Foundation", role = c("ctb", "cph"),
+           comment = "Bundled Apache DataSketches C++ library, src/vendor/datasketches/"),
+    person("Yahoo Inc.", role = "cph",
+           comment = "Apache DataSketches C++, 2015-2018 and 2021-2025"),
+    person("Verizon Media", role = "cph",
+           comment = "Apache DataSketches C++, 2019-2020"),
+    person("Stephan", "Brumme", role = c("ctb", "cph"),
+           comment = "Bundled xxhash64.h (MIT)"),
+    person("Sun Microsystems, Inc.", role = "cph",
+           comment = "FDLIBM log code adapted in bundled fdlibm_log.hpp"),
     person("Austin", "Appleby", role = "ctb",
-           comment = "Author of bundled public-domain MurmurHash3 code"),
+           comment = "Bundled public-domain MurmurHash3 code"),
     person(c("Sean", "Eron"), "Anderson", role = "ctb",
-           comment = "Author of bundled public-domain bit-hack code used in ceiling_power_of_2.hpp")
+           comment = "Bundled public-domain bit-hack code in ceiling_power_of_2.hpp")
   )
 Description: Provides an interface to the 'Apache DataSketches'
     (<https://datasketches.apache.org/>) library of streaming algorithms for
@@ -41,8 +47,9 @@ Suggests:
     testthat (>= 3.0.0)
 LinkingTo:
     cpp11
+Config/Needs/check: decor
 Config/testthat/edition: 3
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-RoxygenNote: 7.3.3
 SystemRequirements: C++17
+Config/roxygen2/version: 8.1.1

@@ -1,0 +1,42 @@
+# Fails each allocation in turn, R's included, while tools/alloc-exercise.R
+# runs, and requires every failure to surface as an R error rather than a
+# crash or a wrong answer. One job per section of the workload; the sweep
+# restarts R once per allocation, so this runs on a schedule and on a
+# `full-ci` pull request only.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+  schedule:
+    - cron: "36 2 * * 6"
+  workflow_dispatch:
+
+name: alloc-failure
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  alloc-failure:
+    if: >-
+      github.event_name != 'pull_request'
+      || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    strategy:
+      fail-fast: false
+      matrix:
+        section: [quantiles, cardinality, other]
+    uses: pedrobtz/r-actions/.github/workflows/alloc-failure.yml@v1
+    with:
+      run: DS_ALLOC_EXERCISE=${{ matrix.section }} R_ENABLE_JIT=0 Rscript tools/alloc-exercise.R
+      baseline-run: R_ENABLE_JIT=0 Rscript tools/alloc-prelude.R
+      # R's own allocation errors, or cpp11's rendering of std::bad_alloc.
+      expect-pattern: "[Cc]annot allocate|[Cc]ould not allocate|memory exhausted|allocation error|[Oo]ut of (virtual )?memory|bad_alloc|datasketches_error"
+      target-pattern: "bad_alloc"
+      # R's own regex and gzfile() crash on a failed allocation; and glibc
+      # aborts at process exit when the failure hits its dlopen of libgcc_s
+      # for pthread_cancel, after the workload has printed its "ok".
+      ignore-crash-pattern: "^ 1: (grepl?|sub|gsub|strsplit|gzfile)\\(|libgcc_s\\.so\\.1 must be installed for pthread_cancel"
+      max-allocations: 3000
