@@ -28,15 +28,29 @@ Useful links:
 
 **Maintainer**: Pedro Baltazar <pedrobtz@gmail.com> \[copyright holder\]
 
+Authors:
+
+- Pedro Baltazar <pedrobtz@gmail.com> \[copyright holder\]
+
 Other contributors:
 
-- The Apache Software Foundation (Author of bundled Apache DataSketches
-  C++ code) \[contributor\]
+- The Apache Software Foundation (Bundled Apache DataSketches C++
+  library, src/vendor/datasketches/) \[contributor, copyright holder\]
 
-- Stephan Brumme (Author of bundled xxhash64.h code) \[contributor\]
+- Yahoo Inc. (Apache DataSketches C++, 2015-2018 and 2021-2025)
+  \[copyright holder\]
 
-- Austin Appleby (Author of bundled public-domain MurmurHash3 code)
+- Verizon Media (Apache DataSketches C++, 2019-2020) \[copyright
+  holder\]
+
+- Stephan Brumme (Bundled xxhash64.h (MIT)) \[contributor, copyright
+  holder\]
+
+- Sun Microsystems, Inc. (FDLIBM log code adapted in bundled
+  fdlibm_log.hpp) \[copyright holder\]
+
+- Austin Appleby (Bundled public-domain MurmurHash3 code)
   \[contributor\]
 
-- Sean Eron Anderson (Author of bundled public-domain bit-hack code used
-  in ceiling_power_of_2.hpp) \[contributor\]
+- Sean Eron Anderson (Bundled public-domain bit-hack code in
+  ceiling_power_of_2.hpp) \[contributor\]

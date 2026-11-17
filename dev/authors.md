@@ -4,18 +4,26 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
-- **The Apache Software Foundation**. Contributor.  
-  Author of bundled Apache DataSketches C++ code
+- **The Apache Software Foundation**. Contributor, copyright holder.  
+  Bundled Apache DataSketches C++ library, src/vendor/datasketches/
 
-- **Stephan Brumme**. Contributor.  
-  Author of bundled xxhash64.h code
+- **Yahoo Inc.**. Copyright holder.  
+  Apache DataSketches C++, 2015-2018 and 2021-2025
+
+- **Verizon Media**. Copyright holder.  
+  Apache DataSketches C++, 2019-2020
+
+- **Stephan Brumme**. Contributor, copyright holder.  
+  Bundled xxhash64.h (MIT)
+
+- **Sun Microsystems, Inc.**. Copyright holder.  
+  FDLIBM log code adapted in bundled fdlibm_log.hpp
 
 - **Austin Appleby**. Contributor.  
-  Author of bundled public-domain MurmurHash3 code
+  Bundled public-domain MurmurHash3 code
 
 - **Sean Eron Anderson**. Contributor.  
-  Author of bundled public-domain bit-hack code used in
-  ceiling_power_of_2.hpp
+  Bundled public-domain bit-hack code in ceiling_power_of_2.hpp
 
 ## Citation
 

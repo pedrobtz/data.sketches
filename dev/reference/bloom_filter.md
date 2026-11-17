@@ -31,9 +31,11 @@ bloom_filter(
 - max_items:
 
   Target maximum number of distinct items, a single positive whole
-  number up to `2^53`. Must be supplied together with `fpp`, and cannot
-  be combined with `num_bits`/`num_hashes`. Must not be set when `bytes`
-  is supplied.
+  number up to `2^53`. The filter it needs at `fpp` must fit the
+  library's maximum of 17,179,868,864 bits (2 GiB); a larger one raises
+  `datasketches_invalid_max_items`. Must be supplied together with
+  `fpp`, and cannot be combined with `num_bits`/`num_hashes`. Must not
+  be set when `bytes` is supplied.
 
 - fpp:
 
@@ -43,10 +45,11 @@ bloom_filter(
 
 - num_bits:
 
-  Number of bits in the filter, a single positive whole number up to
-  `2^53`. Must be supplied together with `num_hashes`, and cannot be
-  combined with `max_items`/`fpp`. Must not be set when `bytes` is
-  supplied.
+  Number of bits in the filter, a single positive whole number up to the
+  library's maximum of 17,179,868,864 (2 GiB); a larger one raises
+  `datasketches_invalid_num_bits`. Must be supplied together with
+  `num_hashes`, and cannot be combined with `max_items`/`fpp`. Must not
+  be set when `bytes` is supplied.
 
 - num_hashes:
 

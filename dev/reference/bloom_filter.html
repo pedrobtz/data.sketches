@@ -76,8 +76,10 @@ filter with.</p></dd>
 
 <dt id="arg-max-items">max_items<a class="anchor" aria-label="anchor" href="#arg-max-items"></a></dt>
 <dd><p>Target maximum number of distinct items, a single positive
-whole number up to <code>2^53</code>. Must be supplied together with <code>fpp</code>, and
-cannot be combined with <code>num_bits</code>/<code>num_hashes</code>. Must not be set when
+whole number up to <code>2^53</code>. The filter it needs at <code>fpp</code> must fit the
+library's maximum of 17,179,868,864 bits (2 GiB); a larger one raises
+<code>datasketches_invalid_max_items</code>. Must be supplied together with <code>fpp</code>,
+and cannot be combined with <code>num_bits</code>/<code>num_hashes</code>. Must not be set when
 <code>bytes</code> is supplied.</p></dd>
 
 
@@ -89,8 +91,10 @@ is supplied.</p></dd>
 
 <dt id="arg-num-bits">num_bits<a class="anchor" aria-label="anchor" href="#arg-num-bits"></a></dt>
 <dd><p>Number of bits in the filter, a single positive whole number
-up to <code>2^53</code>. Must be supplied together with <code>num_hashes</code>, and cannot be
-combined with <code>max_items</code>/<code>fpp</code>. Must not be set when <code>bytes</code> is supplied.</p></dd>
+up to the library's maximum of 17,179,868,864 (2 GiB); a larger one raises
+<code>datasketches_invalid_num_bits</code>. Must be supplied together with
+<code>num_hashes</code>, and cannot be combined with <code>max_items</code>/<code>fpp</code>. Must not be
+set when <code>bytes</code> is supplied.</p></dd>
 
 
 <dt id="arg-num-hashes">num_hashes<a class="anchor" aria-label="anchor" href="#arg-num-hashes"></a></dt>
