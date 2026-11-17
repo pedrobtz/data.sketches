@@ -92,9 +92,9 @@ argument.
 ``` r
 sketch <- kll_floats(rnorm(10000))
 sketch$quantile(c(0.25, 0.5, 0.75))
-#> [1] -0.65030873  0.02120914  0.66907305
+#> [1] -0.64329416  0.02328921  0.67688072
 sketch$rank(c(-1, 0, 1))
-#> [1] 0.1569 0.4883 0.8369
+#> [1] 0.1543 0.4889 0.8417
 
 # Round-trip through the native byte format.
 restored <- kll_floats(bytes = sketch$serialize())
