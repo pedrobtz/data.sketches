@@ -1,0 +1,80 @@
+Validate lg_k when deserializing an HLL sketch.
+
+The HLL array, coupon list and coupon hash set deserializers read lg_k from
+the image and use it as a shift count (hllArrBytes, 1 << lgK) without a
+range check, so a corrupt image with lg_k = 94 shifts a 32-bit int by 93:
+undefined behavior, found by data.sketches tools/fuzz under UBSan. Reject
+lg_k outside [MIN_LOG_K, MAX_LOG_K], as the constructors do.
+
+--- a/hll/include/HllArray-internal.hpp	2026-11-16 18:31:08
++++ b/hll/include/HllArray-internal.hpp	2026-11-16 18:31:08
+@@ -112,6 +112,10 @@
+   const bool comapctFlag = ((data[hll_constants::FLAGS_BYTE] & hll_constants::COMPACT_FLAG_MASK) ? true : false);
+ 
+   const uint8_t lgK = data[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   const uint8_t curMin = data[hll_constants::HLL_CUR_MIN_BYTE];
+ 
+   const uint32_t arrayBytes = hllArrBytes(tgtHllType, lgK);
+@@ -182,6 +186,10 @@
+   const bool comapctFlag = ((listHeader[hll_constants::FLAGS_BYTE] & hll_constants::COMPACT_FLAG_MASK) ? true : false);
+ 
+   const uint8_t lgK = listHeader[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   const uint8_t curMin = listHeader[hll_constants::HLL_CUR_MIN_BYTE];
+ 
+   HllArray* sketch = HllSketchImplFactory<A>::newHll(lgK, tgtHllType, allocator);
+--- a/hll/include/CouponList-internal.hpp	2026-11-16 18:31:08
++++ b/hll/include/CouponList-internal.hpp	2026-11-16 18:31:08
+@@ -94,6 +94,10 @@
+   target_hll_type tgtHllType = HllSketchImpl<A>::extractTgtHllType(data[hll_constants::MODE_BYTE]);
+ 
+   const uint8_t lgK = data[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   const bool compact = ((data[hll_constants::FLAGS_BYTE] & hll_constants::COMPACT_FLAG_MASK) ? true : false);
+   const bool oooFlag = ((data[hll_constants::FLAGS_BYTE] & hll_constants::OUT_OF_ORDER_FLAG_MASK) ? true : false);
+   const bool emptyFlag = ((data[hll_constants::FLAGS_BYTE] & hll_constants::EMPTY_FLAG_MASK) ? true : false);
+@@ -149,6 +153,10 @@
+   const target_hll_type tgtHllType = HllSketchImpl<A>::extractTgtHllType(listHeader[hll_constants::MODE_BYTE]);
+ 
+   const uint8_t lgK = listHeader[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   const bool compact = ((listHeader[hll_constants::FLAGS_BYTE] & hll_constants::COMPACT_FLAG_MASK) ? true : false);
+   const bool oooFlag = ((listHeader[hll_constants::FLAGS_BYTE] & hll_constants::OUT_OF_ORDER_FLAG_MASK) ? true : false);
+   const bool emptyFlag = ((listHeader[hll_constants::FLAGS_BYTE] & hll_constants::EMPTY_FLAG_MASK) ? true : false);
+--- a/hll/include/CouponHashSet-internal.hpp	2026-11-16 18:31:08
++++ b/hll/include/CouponHashSet-internal.hpp	2026-11-16 18:31:08
+@@ -80,6 +80,10 @@
+   const target_hll_type tgtHllType = HllSketchImpl<A>::extractTgtHllType(data[hll_constants::MODE_BYTE]);
+ 
+   const uint8_t lgK = data[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   if (lgK <= 7) {
+     throw std::invalid_argument("Attempt to deserialize invalid CouponHashSet with lgConfigK <= 7. Found: "
+                                 + std::to_string(lgK));
+@@ -145,6 +149,10 @@
+   const target_hll_type tgtHllType = HllSketchImpl<A>::extractTgtHllType(listHeader[hll_constants::MODE_BYTE]);
+ 
+   const uint8_t lgK = listHeader[hll_constants::LG_K_BYTE];
++  if (lgK < hll_constants::MIN_LOG_K || lgK > hll_constants::MAX_LOG_K) {
++    throw std::invalid_argument("Possible corruption: lg_k must be in [" + std::to_string(hll_constants::MIN_LOG_K)
++        + ", " + std::to_string(hll_constants::MAX_LOG_K) + "]. Found: " + std::to_string(lgK));
++  }
+   if (lgK <= 7) {
+     throw std::invalid_argument("Attempt to deserialize invalid CouponHashSet with lgConfigK <= 7. Found: "
+                                 + std::to_string(lgK));

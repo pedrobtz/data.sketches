@@ -1,0 +1,47 @@
+Require a KLL image's retained count to agree with n.
+
+A non-empty KLL sketch retains at least one item and no more than n, and
+with a single level nothing was compacted, so n equals the number retained.
+serialize() chooses the single-item layout by n == 1 while the buffer it
+allocates is sized from the retained count, so an image breaking this made
+it write past the buffer (heap-buffer-overflow WRITE, found by data.sketches
+tools/fuzz). Checked in both overloads after the levels.
+
+--- a/kll/include/kll_sketch_impl.hpp	2026-11-16 22:03:05
++++ b/kll/include/kll_sketch_impl.hpp	2026-11-16 22:03:05
+@@ -486,6 +486,17 @@
+   }
+   levels[num_levels] = capacity;
+   check_levels(levels);
++  // A non-empty sketch retains at least one item and no more than n, and
++  // with a single level nothing was compacted, so n is exactly the number
++  // retained. serialize() picks the single-item layout by n == 1 while the
++  // size it allocates is computed from the retained count, so an image that
++  // breaks this made it write past its buffer.
++  {
++    const uint32_t retained = levels[num_levels] - levels[0];
++    if (retained == 0 || retained > n || (num_levels == 1 && n != retained)) {
++      throw std::invalid_argument("Possible corruption: KLL item count inconsistent with n");
++    }
++  }
+   optional<T> min_item;
+   optional<T> max_item;
+   if (!is_single_item) {
+@@ -578,6 +589,17 @@
+   }
+   levels[num_levels] = capacity;
+   check_levels(levels);
++  // A non-empty sketch retains at least one item and no more than n, and
++  // with a single level nothing was compacted, so n is exactly the number
++  // retained. serialize() picks the single-item layout by n == 1 while the
++  // size it allocates is computed from the retained count, so an image that
++  // breaks this made it write past its buffer.
++  {
++    const uint32_t retained = levels[num_levels] - levels[0];
++    if (retained == 0 || retained > n || (num_levels == 1 && n != retained)) {
++      throw std::invalid_argument("Possible corruption: KLL item count inconsistent with n");
++    }
++  }
+   optional<T> min_item;
+   optional<T> max_item;
+   if (!is_single_item) {

@@ -39,7 +39,7 @@ kll_doubles_sketch_generator <- R6Class(
         private$ptr <- deserialize_native(kll_doubles_deserialize_cpp(bytes))
       } else {
         k <- if (is.null(k)) 200L else check_k(k)
-        private$ptr <- kll_doubles_create_cpp(k)
+        private$ptr <- create_native(kll_doubles_create_cpp(k))
         if (!is.null(x)) {
           self$update(x)
         }

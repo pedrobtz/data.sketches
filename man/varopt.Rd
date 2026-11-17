@@ -11,7 +11,7 @@ varopt(x = NULL, weight = NULL, k = NULL, type = NULL, bytes = NULL)
 sketch with.}
 
 \item{weight}{Optional weight(s) for each element of \code{x}: a single
-non-negative, finite number, or a vector of such values matching
+positive, finite number, or a vector of such values matching
 \code{length(x)}. Defaults to \code{1}. Cannot be set without \code{x}.}
 
 \item{k}{Maximum sample size, a single whole number in \verb{[1, 2^31 - 2]}.

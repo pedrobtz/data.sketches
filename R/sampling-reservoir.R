@@ -59,7 +59,7 @@ ebpps_sketch_generator <- R6Class(
           check_ebpps_type(type)
         }
         k <- if (is.null(k)) 256L else check_ebpps_k(k)
-        private$ptr <- eb_create_cpp(k, type == "character")
+        private$ptr <- create_native(eb_create_cpp(k, type == "character"))
         if (!is.null(x)) {
           self$update(x, weight)
         } else if (!is.null(weight)) {

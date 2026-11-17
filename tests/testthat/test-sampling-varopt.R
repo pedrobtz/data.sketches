@@ -51,7 +51,7 @@ test_that("update() rejects input of the wrong item type", {
   expect_error(s$update(1), class = "datasketches_invalid_input")
 })
 
-test_that("update(weight =) validates non-negative finite weights", {
+test_that("update(weight =) validates positive finite weights", {
   s <- varopt(k = 10)
   expect_error(s$update(1, weight = -1), class = "datasketches_invalid_weight")
   expect_error(s$update(1, weight = NA), class = "datasketches_invalid_weight")
@@ -62,8 +62,11 @@ test_that("update(weight =) validates non-negative finite weights", {
     class = "datasketches_invalid_weight"
   )
 
-  # zero is allowed
-  expect_invisible(s$update(1, weight = 0))
+  # Zero is rejected, as upstream (since 5.3.0) and datasketches-java do; the
+  # smallest positive double is accepted.
+  expect_error(s$update(1, weight = 0), class = "datasketches_invalid_weight")
+  expect_error(s$update(1:2, weight = c(1, 0)), class = "datasketches_invalid_weight")
+  expect_invisible(s$update(1, weight = .Machine$double.xmin))
 })
 
 test_that("varopt() rejects weight without x", {

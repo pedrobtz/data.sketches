@@ -1,0 +1,66 @@
+Validate an EBPPS header and stop reserving k up front.
+
+Found by data.sketches tools/fuzz:
+
+- The sample reserved all of k (from the image, up to 2^31 - 2) at
+  construction, so a 20-byte image claiming a large k allocated gigabytes
+  (out-of-memory). The reservation is a hint; it is now capped and the
+  vector grows. This also spares ebpps(k = 1e9) in R the same allocation.
+- A non-empty image must have n > 0, a positive finite cumulative and
+  maximum weight and rho in (0, 1]; otherwise it re-serializes as a
+  different sketch (n == 0 reads back as empty).
+
+--- a/sampling/include/ebpps_sample_impl.hpp	2026-11-16 21:33:12
++++ b/sampling/include/ebpps_sample_impl.hpp	2026-11-16 21:33:12
+@@ -25,6 +25,7 @@
+ #include "ebpps_sample.hpp"
+ #include "serde.hpp"
+ 
++#include <algorithm>
+ #include <cmath>
+ #include <limits>
+ #include <string>
+@@ -40,7 +41,10 @@
+   partial_item_(),
+   data_(allocator)
+   {
+-    data_.reserve(reserved_size);
++    // The reservation is only a hint; reserving all of k up front made an
++    // empty sketch with a large k (or a 20-byte image claiming one) allocate
++    // gigabytes. The vector grows as items arrive.
++    data_.reserve(std::min<uint32_t>(reserved_size, 1u << 12));
+   }
+ 
+ template<typename T, typename A>
+--- a/sampling/include/ebpps_sketch_impl.hpp	2026-11-16 21:33:12
++++ b/sampling/include/ebpps_sketch_impl.hpp	2026-11-16 21:33:12
+@@ -427,6 +427,14 @@
+   ptr += copy_from_mem(ptr, wt_max);
+   double rho;
+   ptr += copy_from_mem(ptr, rho);
++
++  // A non-empty sketch has seen items: n > 0, a positive finite cumulative
++  // and maximum weight, and rho in (0, 1]. An image without them is corrupt,
++  // and re-serializes as something else (n == 0 reads back as empty).
++  if (n == 0 || !(cumulative_wt > 0) || !std::isfinite(cumulative_wt) ||
++      !(wt_max > 0) || !std::isfinite(wt_max) || !(rho > 0 && rho <= 1)) {
++    throw std::invalid_argument("Possible corruption: inconsistent EBPPS sketch header");
++  }
+ 
+   auto pair = ebpps_sample<T, A>::deserialize(ptr, end_ptr - ptr, sd, allocator);
+   ebpps_sample<T, A> sample = pair.first;
+@@ -461,6 +469,14 @@
+   const double wt_max = read<double>(is);
+   const double rho = read<double>(is);
+ 
++  // A non-empty sketch has seen items: n > 0, a positive finite cumulative
++  // and maximum weight, and rho in (0, 1]. An image without them is corrupt,
++  // and re-serializes as something else (n == 0 reads back as empty).
++  if (n == 0 || !(cumulative_wt > 0) || !std::isfinite(cumulative_wt) ||
++      !(wt_max > 0) || !std::isfinite(wt_max) || !(rho > 0 && rho <= 1)) {
++    throw std::invalid_argument("Possible corruption: inconsistent EBPPS sketch header");
++  }
++
+   auto sample = ebpps_sample<T,A>::deserialize(is, sd, allocator);
+ 
+   if (sample.has_partial_item() != bool(flags & HAS_PARTIAL_ITEM_MASK))

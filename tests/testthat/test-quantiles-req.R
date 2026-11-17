@@ -23,6 +23,16 @@ test_that("req(k =) sets the width and validates the range and parity", {
   expect_error(req(k = c(12, 20)), class = "datasketches_invalid_k")
 })
 
+test_that("req(k =) keeps widths of 256 and above, through a round trip", {
+  # DataSketches before 5.3.1 stored k in 8 bits: k = 500 became 244 and
+  # k = 256 or 1024 became 4 (upstream #552).
+  for (k in c(4, 254, 256, 500, 1022, 1024)) {
+    s <- req(as.double(1:5000), k = k)
+    expect_identical(s$k(), as.integer(k), info = k)
+    expect_identical(req(bytes = s$serialize())$k(), as.integer(k), info = k)
+  }
+})
+
 test_that("req(hra =) sets the high-rank-accuracy flag", {
   expect_true(req(hra = TRUE)$is_hra())
   expect_false(req(hra = FALSE)$is_hra())

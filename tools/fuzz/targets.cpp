@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <exception>
 #include <string>
 #include <tuple>
@@ -134,6 +135,43 @@ fi_key_t fi_key(const fi_t& s) {
   return k;
 }
 
+// HLL's key is its compact serialization, with the coupons of a list or set
+// sorted: those are written in hash-table order, which depends on insertion
+// history, so the same coupons can come out in a different order. The mode
+// is the low two bits of byte 7 (LIST 0, SET 1, HLL 2); coupons start after
+// the 8- or 12-byte preamble. HLL arrays are compared byte for byte.
+bytes_t hll_key(const datasketches::hll_sketch& s) {
+  auto v = s.serialize_compact();
+  bytes_t b(v.begin(), v.end());
+  if (b.size() < 8) return b;
+  const uint8_t mode = b[7] & 0x03;
+  if (mode > 1) return b;
+  const size_t start = (mode == 0) ? 8 : 12;
+  std::vector<uint32_t> coupons;
+  for (size_t i = start; i + 4 <= b.size(); i += 4) {
+    uint32_t c;
+    std::memcpy(&c, b.data() + i, sizeof(c));
+    coupons.push_back(c);
+  }
+  std::sort(coupons.begin(), coupons.end());
+  for (size_t i = 0; i < coupons.size(); ++i) std::memcpy(b.data() + start + 4 * i, &coupons[i], sizeof(uint32_t));
+  return b;
+}
+
+// t-Digest's key is its serialization with one bit masked: an empty sketch's
+// reverse_merge flag (bit 2 of the flags byte, offset 5). It only says which
+// way the next internal merge runs, so it means nothing for an empty sketch,
+// and upstream's empty-image path drops it on reading
+// (`if (is_empty) return tdigest(k, allocator)`). A payload flagged non-empty
+// but holding nothing keeps it for one round trip and loses it on the next;
+// nothing observable changes. Everything else must still match exactly.
+bytes_t tdigest_key(const datasketches::tdigest_double& s) {
+  auto v = s.serialize();
+  bytes_t b(v.begin(), v.end());
+  if (b.size() > 5 && (b[5] & 0x01)) b[5] &= static_cast<uint8_t>(~0x04);
+  return b;
+}
+
 }  // namespace
 
 extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
@@ -162,15 +200,17 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
     case 3:
       round_trip("tdigest_double", data, size,
                  [](const uint8_t* p, size_t n) { return tdigest_double::deserialize(p, n); },
-                 plain<tdigest_double>);
+                 plain<tdigest_double>, tdigest_key);
       break;
     case 4:
+      if (size < 8) break;  // hll() rejects a shorter payload in R
       round_trip("hll", data, size,
                  [](const uint8_t* p, size_t n) { return hll_sketch::deserialize(p, n); },
                  [](const hll_sketch& s) {
                    auto v = s.serialize_compact();
                    return bytes_t(v.begin(), v.end());
-                 });
+                 },
+                 hll_key);
       break;
     case 5:
       round_trip("cpc", data, size,
@@ -199,22 +239,55 @@ extern "C" int ds_fuzz_one(const uint8_t* data, size_t size) {
                  },
                  plain<fi_t>, fi_key);
       break;
-    case 9:
+    case 9: {
+      // An empty Count-Min image still declares its table, and any reader
+      // allocates num_hashes * num_buckets counters for it: a legitimate empty
+      // sketch can be large, so this is the format, not a bug. Skip the ones
+      // past 64 MiB, which would only measure the fuzzer's memory limit.
+      if (size >= 16 && (data[3] & 0x01)) {
+        uint32_t nbuckets;
+        std::memcpy(&nbuckets, data + 8, sizeof(nbuckets));
+        const uint64_t cells = static_cast<uint64_t>(nbuckets) * data[12];
+        if (cells * sizeof(double) > (64ULL << 20)) break;
+      }
       round_trip("count_min", data, size,
                  [](const uint8_t* p, size_t n) { return count_min_sketch<double>::deserialize(p, n, seed); },
                  plain<count_min_sketch<double>>);
       break;
-    case 10:
+    }
+    case 10: {
+      // An empty or warmup-mode VarOpt image declares its capacity through k
+      // and the resize factor (X1 preallocates all of k), and any reader
+      // allocates it: like an empty Count-Min table, that is the format, not
+      // a bug. Skip k past 2^20 there, which would only measure the fuzzer's
+      // memory limit. Full mode is bounded by its items, checked by 0015.
+      if (size >= 9) {
+        const uint8_t prelongs = data[1] & 0x3f;
+        uint32_t k;
+        std::memcpy(&k, data + 5, sizeof(k));
+        if (prelongs != 4 && k > (1u << 20)) break;
+      }
       tagged<var_opt_sketch<double>, var_opt_sketch<std::string>>("varopt", data, size);
       break;
+    }
     case 11:
       tagged<ebpps_sketch<double>, ebpps_sketch<std::string>>("ebpps", data, size);
       break;
-    case 12:
+    case 12: {
+      // An empty Bloom image declares its capacity (num_longs), and any reader
+      // allocates and zeroes that many bits: a legitimate empty filter can be
+      // gigabytes (the library allows about 2^34 bits), so this is the format,
+      // not a bug. Skip past 64 MiB, which only measures the fuzzer's time.
+      if (size >= 20 && (data[3] & 0x04)) {
+        uint32_t num_longs;
+        std::memcpy(&num_longs, data + 16, sizeof(num_longs));
+        if (static_cast<uint64_t>(num_longs) * 8 > (64ULL << 20)) break;
+      }
       round_trip("bloom_filter", data, size,
                  [](const uint8_t* p, size_t n) { return bloom_filter::deserialize(p, n); },
                  plain<bloom_filter>);
       break;
+    }
   }
   return 0;
 }

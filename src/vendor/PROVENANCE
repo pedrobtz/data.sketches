@@ -1,0 +1,104 @@
+Vendored dependency: Apache DataSketches C++, header-only
+
+  Upstream:      https://github.com/apache/datasketches-cpp
+  Version:       5.3.1
+  Tag:           5.3.1
+  Commit:        4827417fa82091915f490c8ef97c7692dcc9b1b8
+  Archive:       https://archive.apache.org/dist/datasketches/cpp/5.3.1/apache-datasketches-cpp-5.3.1-src.zip
+  SHA-256:       b143ad058ceb7b41a4e75d391b6d812b692646092a657e194de2eaaab65b0d68
+  SHA-512:       7d53ec29d6478ea71bcd4ca8539b04fa1cb655c50100a66aa06a5885376435361b13270c6d1f9211e85f941452dc315284c121a21074c118044801ba5a665617
+                 (as published by Apache beside the archive, .sha512)
+  Imported:      2026-11-16
+  License:       Apache-2.0 (src/vendor/datasketches/LICENSE, NOTICE); bundled
+                 MIT (xxhash64.h), FDLIBM (fdlibm_log.hpp) and public-domain
+                 (MurmurHash3.h, ceiling_power_of_2.hpp) code, see
+                 inst/COPYRIGHTS
+  Local patches: applied in this order, from tools/patches/datasketches/
+                 0001-hll-validate-lg-k.patch
+                 0002-bloom-validate-header.patch
+                 0003-ebpps-validate-item-count.patch
+                 0004-fi-exception-safe-resize.patch
+                 0005-serde-no-null-memcpy.patch
+                 0006-count-min-serialize-append.patch
+                 0007-kll-merge-allocate-first.patch
+                 0008-hll-deserialize-consistency.patch
+                 0009-fi-deserialize-bounds.patch
+                 0010-req-bound-item-count.patch
+                 0011-ebpps-header-and-reserve.patch
+                 0012-count-min-check-size-first.patch
+                 0013-tdigest-deserialize-validation.patch
+                 0014-theta-validate-compact-entries.patch
+                 0015-varopt-deserialize-fixes.patch
+                 0016-tuple-validate-compact-entries.patch
+                 0017-kll-item-count-invariants.patch
+                 0018-bloom-suggest-num-hashes-clamp.patch
+
+src/vendor/datasketches/ is the files listed in
+tools/vendor/keep/datasketches.txt, copied with their upstream layout from the
+Apache source release, with exactly the patches above applied: LICENSE, NOTICE
+and every component's include/ directory. The library is header-only, so
+nothing else is needed; src/Makevars puts each include/ directory on the
+include path. Tests, benchmarks, Python bindings and the CMake build are
+excluded. tools/vendor/manifest.tsv pins the archive and its sha256;
+tools/vendor/verify re-derives the tree from it and fails on any other
+difference.
+
+The patches fix bugs that remain in 5.3.1, and are to be reported upstream.
+Each patch file begins with what it fixes and how it was found. In short:
+
+Deserializing corrupt images (found by tools/fuzz under ASan and UBSan,
+data.sketches issue #33). Every one is reachable from R through a
+constructor's `bytes =`; patched, each raises datasketches_invalid_bytes:
+
+  0001  HLL: lg_k validated before it is used as a shift count
+  0002  Bloom: header validated (over-read, zero capacity: SIGFPE, 32-bit
+        shift wrap, zero hash functions)
+  0003  EBPPS: item count C validated (NaN or huge: unchecked conversion)
+  0005  serde: no memcpy from a null pointer for an empty sample
+  0008  HLL: aux map, coupon list and coupon set consistent with the image
+        (shift counts, misaligned reads, leak, double free, heap overflow on
+        write, bad downcast, HLL_4 tokens without aux entries, invalid or
+        duplicate coupons, counted coupons in an empty list; sets rebuilt by
+        insertion)
+  0009  Frequent Items: sizes bounded, map sized by the items, weights checked
+  0010  REQ: item count checked against the bytes before allocating
+  0011  EBPPS: header consistent; k no longer reserved up front
+  0012  Count-Min: table size checked against the bytes before allocating
+  0013  t-digest: compat k and weights converted checked; weights, min, max
+        and means consistent; weighted means computed without overflow
+        (this one also affected valid data near the largest double)
+  0014  Theta: theta <= MAX_THETA, compact entries in (0, theta), ordered and
+        unique, none in an empty sketch
+  0015  VarOpt: marks freed with their real size (sized-delete mismatch);
+        full-mode arrays checked against the bytes before allocating
+  0016  Array of Doubles: compact entries validated as for Theta (0014)
+  0017  KLL: retained count consistent with n (a mismatch made serialize()
+        write past its buffer)
+
+Failed allocations (found by alloc-failure.yaml, #35), each with a
+regression test in tools/vendor/tests/:
+
+  0004  Frequent Items: the hash map resize survives a std::bad_alloc
+  0007  KLL merge (and Theta reset): allocate the new buffer before freeing
+        the old one
+
+Compiler diagnostic, not a bug:
+
+  0006  Count-Min: serialize() appends instead of writing through data(),
+        which gcc's UBSan build reported as out of bounds, a WARNING under
+        R CMD check
+
+Out-of-range conversion on valid arguments (found by sanitizers CI):
+
+  0018  Bloom: suggest_num_hashes() clamped to the 65535 hash functions a
+        filter stores (many bits per item overflowed uint16_t); its
+        too-many-bits error names the real limit
+
+Updating: change the tag, commit, version_string, archive and archive_sha256
+columns of tools/vendor/manifest.tsv (check the archive against the .sha512
+Apache publishes beside it), regenerate the keep list from the new release's
+include/ directories if components gained or lost files, and run
+tools/vendor/fetch, rebasing or dropping each patch the release makes
+unnecessary. Then update this file, R/datasketches-version.R,
+inst/COPYRIGHTS and DESCRIPTION's Authors@R against the new NOTICE and
+LICENSE, and run tools/vendor/verify, tools/vendor/tests/ and the test suite.

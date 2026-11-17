@@ -114,7 +114,7 @@ is the same in every pair, so read one pair before touching another.
 Adding a sketch type touches all of these: the bridge, the R file, a validator
 and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
 `R/print.R`, the `sketch_builders` list in
-`tests/testthat/test-conditions.R`, and the reference index in
+`tests/testthat/helper-sketch-builders.R`, and the reference index in
 `_pkgdown.yml`.
 
 Generated files beyond roxygen's: `R/cpp11.R` and `src/cpp11.cpp` (by
@@ -162,7 +162,10 @@ is no `README.Rmd`.
 - `test-interrupt-safety.R` uses `setTimeLimit()` to trigger the interrupt
   probes without a signal. It is `skip_on_cran()` because it allocates
   2e7-element vectors.
-- There are no `helper-*.R` files and no external conformance corpus. The
+- `helper-sketch-builders.R` (the constructor list) and `helper-interrupt.R`
+  (`interrupt_after()`) are the only helpers; nothing is defined at file
+  scope, so `devtools::test(shuffle = TRUE)` passes. There is no external
+  conformance corpus. The
   cross-implementation guarantee is that `$serialize()` bytes round-trip.
 - CRAN check time is under a minute on Linux; keep it there.
 

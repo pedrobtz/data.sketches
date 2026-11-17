@@ -1,0 +1,44 @@
+Allocate before freeing when KLL merge and Theta reset replace a buffer.
+
+kll_sketch::merge_higher_levels() deallocated items_ and then allocated its
+replacement. A std::bad_alloc from that allocation left items_ dangling, and
+the destructor freed it again: a double free, found from R by
+data.sketches alloc-failure.yaml on kll_doubles()$merge(). Allocate first,
+then free and swap. theta_update_sketch_base::reset() had the same order
+and gets the same fix.
+
+--- a/kll/include/kll_sketch_impl.hpp	2026-11-16 19:54:12
++++ b/kll/include/kll_sketch_impl.hpp	2026-11-16 19:54:12
+@@ -810,9 +810,13 @@
+ 
+   // now we need to transfer the results back into "this" sketch
+   if (result.final_capacity != items_size_) {
++    // Allocate the replacement before freeing the old buffer: freeing first
++    // left items_ dangling when the allocation threw, and the destructor then
++    // freed it a second time.
++    T* new_items = allocator_.allocate(result.final_capacity);
+     allocator_.deallocate(items_, items_size_);
++    items_ = new_items;
+     items_size_ = result.final_capacity;
+-    items_ = allocator_.allocate(items_size_);
+   }
+   const uint32_t free_space_at_bottom = result.final_capacity - result.final_num_items;
+   kll_helper::move_construct<T>(workbuf.get(), outlevels[0], outlevels[0] + result.final_num_items, items_, free_space_at_bottom, true);
+--- a/theta/include/theta_update_sketch_base_impl.hpp	2026-11-16 19:54:12
++++ b/theta/include/theta_update_sketch_base_impl.hpp	2026-11-16 19:54:12
+@@ -267,10 +267,13 @@
+   const uint8_t starting_lg_size = theta_build_helper<true>::starting_sub_multiple(
+       lg_nom_size_ + 1, theta_constants::MIN_LG_ARR, static_cast<uint8_t>(rf_));
+   if (starting_lg_size != lg_cur_size_) {
++    // Allocate before freeing, as in kll_sketch::merge_higher_levels(), so a
++    // std::bad_alloc does not leave entries_ dangling for the destructor.
++    const size_t new_size = 1ULL << starting_lg_size;
++    EN* new_entries = allocator_.allocate(new_size);
+     allocator_.deallocate(entries_, cur_size);
++    entries_ = new_entries;
+     lg_cur_size_ = starting_lg_size;
+-    const size_t new_size = 1ULL << starting_lg_size;
+-    entries_ = allocator_.allocate(new_size);
+     for (size_t i = 0; i < new_size; ++i) EK()(entries_[i]) = 0;
+   }
+   num_entries_ = 0;

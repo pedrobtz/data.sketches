@@ -1,0 +1,78 @@
+Validate a compact Array of Doubles (array tuple) sketch's entries.
+
+The same invariants as compact Theta sketches (0014): an empty sketch holds
+no entries, theta does not exceed MAX_THETA, and the keys lie in (0, theta),
+strictly increasing when ordered and never repeated. An image flagged empty
+but carrying an entry, found by data.sketches tools/fuzz, re-serialized with
+the zero seed hash 5.3.0 writes for empty sketches, and was then refused on
+reading. Both the bytes and the stream overloads check.
+
+--- a/tuple/include/array_tuple_sketch_impl.hpp	2026-11-16 22:03:05
++++ b/tuple/include/array_tuple_sketch_impl.hpp	2026-11-16 22:03:05
+@@ -17,6 +17,10 @@
+  * under the License.
+  */
+ 
++#include <algorithm>
++#include <stdexcept>
++#include <vector>
++
+ namespace datasketches {
+ 
+ template<typename Array, typename Policy, typename Allocator>
+@@ -140,6 +144,39 @@
+   return bytes;
+ }
+ 
++// As for compact Theta sketches: an empty sketch holds no entries, theta does
++// not exceed MAX_THETA, and the keys lie in (0, theta), strictly increasing
++// when ordered and never repeated. An empty image with an entry re-serialized
++// with a zero seed hash that was then refused (found by data.sketches
++// tools/fuzz).
++template<typename Entries, typename Allocator>
++static void check_entries(bool is_empty, bool is_ordered, uint64_t theta, const Entries& entries, const Allocator& allocator) {
++  if (is_empty && !entries.empty()) {
++    throw std::invalid_argument("Possible corruption: empty sketch with entries");
++  }
++  if (theta > theta_constants::MAX_THETA) {
++    throw std::invalid_argument("Possible corruption: theta exceeds its maximum");
++  }
++  using AllocU64 = typename std::allocator_traits<Allocator>::template rebind_alloc<uint64_t>;
++  std::vector<uint64_t, AllocU64> keys(allocator);
++  keys.reserve(entries.size());
++  uint64_t previous = 0;
++  for (const auto& entry: entries) {
++    const uint64_t key = entry.first;
++    if (key == 0 || key >= theta || (is_ordered && key <= previous)) {
++      throw std::invalid_argument("Possible corruption: compact sketch entry out of range or out of order");
++    }
++    previous = key;
++    keys.push_back(key);
++  }
++  if (!is_ordered && keys.size() > 1) {
++    std::sort(keys.begin(), keys.end());
++    if (std::adjacent_find(keys.begin(), keys.end()) != keys.end()) {
++      throw std::invalid_argument("Possible corruption: duplicate entry in compact sketch");
++    }
++  }
++}
++
+ template<typename Array, typename Allocator>
+ compact_array_tuple_sketch<Array, Allocator> compact_array_tuple_sketch<Array, Allocator>::deserialize(std::istream& is, uint64_t seed, const Allocator& allocator) {
+   read<uint8_t>(is); // unused
+@@ -172,6 +209,7 @@
+   if (!is.good()) throw std::runtime_error("error reading from std::istream");
+   const bool is_empty = flags_byte & (1 << flags::IS_EMPTY);
+   const bool is_ordered = flags_byte & (1 << flags::IS_ORDERED);
++  check_entries(is_empty, is_ordered, theta, entries, allocator);
+   return compact_array_tuple_sketch<Array, Allocator>(is_empty, is_ordered, seed_hash, theta, std::move(entries), num_values);
+ }
+ 
+@@ -218,6 +256,7 @@
+   }
+   const bool is_empty = flags_byte & (1 << flags::IS_EMPTY);
+   const bool is_ordered = flags_byte & (1 << flags::IS_ORDERED);
++  check_entries(is_empty, is_ordered, theta, entries, allocator);
+   return compact_array_tuple_sketch<Array, Allocator>(is_empty, is_ordered, seed_hash, theta, std::move(entries), num_values);
+ }
+ 

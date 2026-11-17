@@ -97,6 +97,20 @@ tuple_t& aod_sketch_from_xptr(cpp11::sexp sketch) {
   return *aod_holder_from_xptr(sketch).sk;
 }
 
+// Feed a sketch held through the abstract base into a union or intersection.
+// Since DataSketches 5.3.0 their update() checks the sketch's
+// get_num_values() against the policy's (upstream #546), which only the
+// concrete update/compact types expose, so dispatch on the concrete type as
+// a_not_b already does.
+template <class Op>
+void aod_feed(Op& op, tuple_t& sk) {
+  if (auto* upd = dynamic_cast<update_aod_t*>(&sk)) {
+    op.update(*upd);
+  } else {
+    op.update(*dynamic_cast<compact_aod_t*>(&sk));
+  }
+}
+
 cpp11::sexp wrap_aod_sketch(std::unique_ptr<tuple_t> sk, int num_values) {
   aod_ptr ptr(new aod_holder{std::move(sk), static_cast<uint8_t>(num_values)});
   SEXP out = static_cast<SEXP>(ptr);
@@ -213,8 +227,8 @@ void aod_merge_cpp(cpp11::sexp sketch, cpp11::sexp other, int lg_k, double seed)
     .set_lg_k(static_cast<uint8_t>(lg_k))
     .set_seed(seed_u64)
     .build();
-  u.update(sa);
-  u.update(sb);
+  aod_feed(u, sa);
+  aod_feed(u, sb);
 
   holder.sk = std::make_unique<compact_aod_t>(u.get_result(true));
 }
@@ -340,8 +354,8 @@ cpp11::sexp aod_union_cpp(cpp11::sexp a, cpp11::sexp b, int lg_k, double seed, i
     .set_lg_k(static_cast<uint8_t>(lg_k))
     .set_seed(seed_u64)
     .build();
-  u.update(sa);
-  u.update(sb);
+  aod_feed(u, sa);
+  aod_feed(u, sb);
 
   return wrap_aod_sketch(std::make_unique<compact_aod_t>(u.get_result(true)), num_values);
 }
@@ -356,8 +370,8 @@ cpp11::sexp aod_intersection_cpp(cpp11::sexp a, cpp11::sexp b, double seed, int 
     seed_u64,
     union_policy_t(static_cast<uint8_t>(num_values))
   );
-  inter.update(sa);
-  inter.update(sb);
+  aod_feed(inter, sa);
+  aod_feed(inter, sb);
 
   return wrap_aod_sketch(std::make_unique<compact_aod_t>(inter.get_result(true)), num_values);
 }

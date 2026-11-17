@@ -9,21 +9,7 @@
 # `setTimeLimit()` raises at the same probe points as a user interrupt, which
 # makes the path testable without sending a signal.
 
-# Interrupt `expr` after `seconds` and report whether it actually fired.
-interrupt_after <- function(expr, seconds) {
-  fired <- TRUE
-  tryCatch(
-    {
-      setTimeLimit(elapsed = seconds, transient = TRUE)
-      on.exit(setTimeLimit(), add = TRUE)
-      force(expr)
-      fired <- FALSE
-    },
-    error = function(e) NULL
-  )
-  setTimeLimit()
-  fired
-}
+# `interrupt_after()` is in helper-interrupt.R.
 
 test_that("an interrupted update releases its input vector", {
   skip_on_cran()

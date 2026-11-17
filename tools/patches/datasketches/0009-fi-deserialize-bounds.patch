@@ -1,0 +1,74 @@
+Bound Frequent Items deserialization by the image.
+
+Found by data.sketches tools/fuzz:
+
+- lg_max_size is capped at 30: the map shifts by it (UB above 63, and
+  1 << lg_cur_size is an int).
+- The rebuilt map starts no larger than the item count needs instead of at
+  the image's lg_cur_size, so a few bytes cannot demand a map of 2^30 slots
+  (allocation-size-too-big / out-of-memory). The map grows on demand to
+  lg_max_size and purges only there, so the result does not change.
+- Item weights must be positive and sum to at most the total weight: a zero
+  weight was dropped on the next round trip, and an excess made the
+  estimates meaningless.
+- The item count is checked against the bytes before it sizes the map.
+
+--- a/fi/include/frequent_items_sketch_impl.hpp	2026-11-16 21:33:12
++++ b/fi/include/frequent_items_sketch_impl.hpp	2026-11-16 21:33:12
+@@ -369,7 +369,24 @@
+   check_size(lg_cur_size, lg_max_size);
+   ensure_minimum_memory(size, preamble_longs * sizeof(uint64_t));
+ 
+-  frequent_items_sketch sketch(lg_max_size, lg_cur_size, equal, allocator);
++  // The map is rebuilt below by updating each item, and it grows on demand up
++  // to lg_max_size, purging only there, so its starting size does not change
++  // the result. Start it no larger than the items need rather than at the
++  // image's lg_cur_size: a few bytes could otherwise demand a map of 2^30
++  // slots. (num_items is checked against the bytes before any is read.)
++  uint8_t lg_start_size = LG_MIN_MAP_SIZE;
++  if (!is_empty) {
++    uint32_t n;
++    std::memcpy(&n, ptr, sizeof(n));
++    if (static_cast<uint64_t>(n) * sizeof(W) > size) {
++      throw std::invalid_argument("Possible corruption: more items than bytes in Frequent Items image");
++    }
++    while (lg_start_size < lg_cur_size &&
++           static_cast<double>(1ULL << lg_start_size) * 0.75 < n) {  // reverse_purge_hash_map::LOAD_FACTOR
++      ++lg_start_size;
++    }
++  }
++  frequent_items_sketch sketch(lg_max_size, lg_start_size, equal, allocator);
+   if (!is_empty) {
+     uint32_t num_items;
+     ptr += copy_from_mem(ptr, num_items);
+@@ -385,6 +402,18 @@
+     using AllocW = typename std::allocator_traits<A>::template rebind_alloc<W>;
+     std::vector<W, AllocW> weights(num_items, 0, allocator);
+     ptr += copy_from_mem(ptr, weights.data(), sizeof(W) * num_items);
++    // Every retained item has a positive weight, and together they cannot
++    // exceed the stream's total weight. A zero weight is dropped on the next
++    // round trip, and an excess makes the estimates meaningless.
++    {
++      W sum = 0;
++      for (const W w: weights) {
++        if (!(w > 0) || w > total_weight - sum) {
++          throw std::invalid_argument("Possible corruption: item weights inconsistent with the total weight");
++        }
++        sum += w;
++      }
++    }
+     A alloc(allocator);
+     std::unique_ptr<T, items_deleter> items(alloc.allocate(num_items), items_deleter(num_items, false, alloc));
+     const size_t bytes_remaining = size - (ptr - base);
+@@ -443,6 +472,11 @@
+   if (lg_cur_size < LG_MIN_MAP_SIZE) {
+     throw std::invalid_argument("Possible corruption: lg_cur_size must not be less than " + std::to_string(LG_MIN_MAP_SIZE) + ": " + std::to_string(lg_cur_size));
+   }
++  // Both are shift counts in the map (1 << lg_cur_size is an int); a map of
++  // 2^30 slots is already far beyond any sketch in practice.
++  if (lg_max_size > 30) {
++    throw std::invalid_argument("Possible corruption: lg_max_size must not exceed 30: " + std::to_string(lg_max_size));
++  }
+ }
+ 
+ template<typename T, typename W, typename H, typename E, typename A>

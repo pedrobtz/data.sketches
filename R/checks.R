@@ -804,10 +804,12 @@ check_varopt_weight <- function(weight, n, call = rlang::caller_env()) {
       !(length(weight) %in% c(1L, n)) ||
       anyNA(weight) ||
       any(!is.finite(weight)) ||
-      any(weight < 0)
+      any(weight <= 0)
   ) {
+    # Positive, not non-negative: DataSketches 5.3.0 rejects a zero weight,
+    # as datasketches-java and the VarOpt paper do (upstream #495).
     abort_invalid(
-      "`weight` must be a non-negative, finite number, or a vector of such values matching the length of `x`.",
+      "`weight` must be a positive, finite number, or a vector of such values matching the length of `x`.",
       "datasketches_invalid_weight",
       call = call
     )
@@ -953,18 +955,88 @@ check_bloom_fpp <- function(fpp, call = rlang::caller_env()) {
   as.double(fpp)
 }
 
+# The largest Bloom filter the library builds, in bits: its own
+# `MAX_FILTER_SIZE_BITS`, read through the bridge so that this limit and the
+# library's cannot drift apart (#32).
+bloom_max_bits <- function() bf_max_filter_bits_cpp()
+
+bloom_size_text <- function(bits) {
+  sprintf(
+    "%s bits (%.1f GiB)",
+    format(bits, big.mark = ",", scientific = FALSE),
+    bits / 8 / 2^30
+  )
+}
+
 # `num_bits` for a Bloom filter sized explicitly: a single positive whole
-# number up to `2^53`. Returns a double (the native side takes a `uint64_t`,
-# which may exceed `.Machine$integer.max`); the native `MAX_FILTER_SIZE_BITS`
-# upper bound is enforced natively.
+# number, at most the library's maximum filter size. Returns a double (the
+# native side takes a `uint64_t`, which may exceed `.Machine$integer.max`).
+# The library rounds the size up to whole 64-bit words; its maximum is itself
+# a multiple of 64, so any value up to it stays within it.
 check_bloom_num_bits <- function(num_bits, call = rlang::caller_env()) {
-  check_uint64ish(
+  num_bits <- check_uint64ish(
     num_bits,
     lengths = 1L,
     min = 1,
-    message = "`num_bits` must be a single positive whole number up to 2^53.",
+    message = "`num_bits` must be a single positive whole number.",
     class = "datasketches_invalid_num_bits",
     call = call
+  )
+  max_bits <- bloom_max_bits()
+  if (num_bits > max_bits) {
+    abort_invalid(
+      sprintf(
+        "`num_bits` must be at most %s, the largest filter the library builds.",
+        bloom_size_text(max_bits)
+      ),
+      "datasketches_invalid_num_bits",
+      call = call
+    )
+  }
+  num_bits
+}
+
+# A filter sized by accuracy needs the bits the library's own sizing rule
+# gives for `max_items` and `fpp`; refuse before building one larger than the
+# library allows, with what to change.
+check_bloom_accuracy_fits <- function(max_items, fpp, call = rlang::caller_env()) {
+  needed <- bf_suggest_num_filter_bits_cpp(max_items, fpp)
+  max_bits <- bloom_max_bits()
+  if (needed > max_bits) {
+    abort_invalid(
+      sprintf(
+        "`max_items` = %s at `fpp` = %s needs %s, more than the largest filter the library builds, %s. Lower `max_items` or raise `fpp`.",
+        format(max_items, big.mark = ",", scientific = FALSE),
+        format(fpp),
+        bloom_size_text(needed),
+        bloom_size_text(max_bits)
+      ),
+      "datasketches_invalid_max_items",
+      call = call
+    )
+  }
+  invisible(TRUE)
+}
+
+# Every native constructor call goes through this. The R checks come first and
+# raise the documented classes; anything the library still rejects (a check
+# upstream adds later, say) is raised as `datasketches_invalid_args` with the
+# native message as its parent, never as a bare error that a
+# `tryCatch(datasketches_error = )` would miss (#32).
+create_native <- function(expr, call = rlang::caller_env()) {
+  rlang::try_fetch(
+    expr,
+    error = function(cnd) {
+      if (inherits(cnd, "datasketches_error")) {
+        rlang::cnd_signal(cnd)
+      }
+      abort_native(
+        "The native library rejected these arguments.",
+        "datasketches_invalid_args",
+        parent = cnd,
+        call = call
+      )
+    }
   )
 }
 

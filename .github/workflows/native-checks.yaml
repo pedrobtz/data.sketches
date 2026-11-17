@@ -44,7 +44,7 @@ jobs:
     with:
       # Upstream's code; the analyzers are for the package's own bridge.
       exclude: |
-        src/datasketches
+        src/vendor
 
   cran-special:
     uses: pedrobtz/r-actions/.github/workflows/cran-special.yml@v1

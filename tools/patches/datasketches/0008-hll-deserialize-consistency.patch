@@ -1,0 +1,343 @@
+Make HLL deserialization reject inconsistent images.
+
+Found by data.sketches tools/fuzz under ASan and UBSan, all on hll_sketch
+deserialization:
+
+- AuxHashMap::deserialize: lgAuxArrInts from the image was a shift count
+  (UB above 31); it is now bounded by lg_k. The pairs are read with memcpy
+  rather than through a uint32_t pointer at an arbitrary offset (misaligned
+  load). The map is owned by a unique_ptr until returned, so a duplicate slot
+  no longer leaks it; in the stream overload it was freed explicitly and
+  then again by its unique_ptr (double free).
+- CouponHashSet::newSet: lgArrInts likewise bounded by lg_k (shift UB), and
+  an updatable image's count must equal its non-empty slots: otherwise a
+  later compact serialization writes every slot into a buffer sized for the
+  count (heap-buffer-overflow WRITE).
+- HllArray::newHll: aux entries in a non-HLL_4 image are rejected (the cast
+  to Hll4Array was invalid: UBSan downcast), and an HLL_4 image must have an
+  aux entry, of at least curMin + 15, for exactly the slots that carry
+  AUX_TOKEN; queries, printing and serialization otherwise throw on, or
+  read, entries that are not there.
+- CouponList and CouponHashSet: every coupon must be a real coupon (non-zero
+  value field) and appear once, and an updatable set's table is rebuilt by
+  inserting its coupons instead of copied: the image is not trusted to place
+  them where the hash probe finds them, and a misplaced coupon was rewritten
+  on the next round trip. A set too large to stay a set is corruption, and
+  the promoted sketch is freed rather than leaked.
+- CouponList: an image flagged empty must count no coupons (it is not read,
+  and a non-zero count made a sketch of that many zero coupons).
+
+--- a/hll/include/AuxHashMap-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/AuxHashMap-internal.hpp	2026-11-16 22:03:05
+@@ -20,6 +20,7 @@
+ #ifndef _AUXHASHMAP_INTERNAL_HPP_
+ #define _AUXHASHMAP_INTERNAL_HPP_
+ 
++#include <cstring>
+ #include <stdexcept>
+ 
+ #include "HllUtil.hpp"
+@@ -57,17 +58,33 @@
+     lgArrInts = lgAuxArrInts;
+   }
+   
++  // lgAuxArrInts comes from the image and is used as a shift count below; an
++  // aux table larger than 2^lgConfigK entries cannot occur.
++  if (lgArrInts > lgConfigK) {
++    throw std::invalid_argument("Possible corruption: AuxHashMap size exceeds lg_k");
++  }
+   const uint32_t configKmask = (1 << lgConfigK) - 1;
+ 
+-  AuxHashMap<A>* auxHashMap;
+-  const uint32_t* auxPtr = static_cast<const uint32_t*>(bytes);
++  // The pairs sit at an arbitrary offset into the image, so they are read with
++  // memcpy rather than through a uint32_t pointer (misaligned access), and the
++  // map is owned by aux_ptr until it is returned, so that a throwing mustAdd()
++  // (a duplicate slot) does not leak it.
++  const uint8_t* auxBytes = static_cast<const uint8_t*>(bytes);
++  auto readPair = [auxBytes](uint32_t i) {
++    uint32_t pair;
++    std::memcpy(&pair, auxBytes + static_cast<size_t>(i) * sizeof(uint32_t), sizeof(pair));
++    return pair;
++  };
++  typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
++  aux_hash_map_ptr aux_ptr;
+   if (srcCompact) {
+     if (len < auxCount * sizeof(int)) {
+       throw std::out_of_range("Input array too small to hold AuxHashMap image");
+     }
+-    auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
++    AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
++    aux_ptr = aux_hash_map_ptr(auxHashMap, auxHashMap->make_deleter());
+     for (uint32_t i = 0; i < auxCount; ++i) {
+-      const uint32_t pair = auxPtr[i];
++      const uint32_t pair = readPair(i);
+       const uint32_t slotNo = HllUtil<A>::getLow26(pair) & configKmask;
+       const uint8_t value = HllUtil<A>::getValue(pair);
+       auxHashMap->mustAdd(slotNo, value);
+@@ -77,9 +94,10 @@
+     if (len < itemsToRead * sizeof(uint32_t)) {
+       throw std::out_of_range("Input array too small to hold AuxHashMap image");
+     }
+-    auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
++    AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
++    aux_ptr = aux_hash_map_ptr(auxHashMap, auxHashMap->make_deleter());
+     for (uint32_t i = 0; i < itemsToRead; ++i) {
+-      const uint32_t pair = auxPtr[i];
++      const uint32_t pair = readPair(i);
+       if (pair == hll_constants::EMPTY) { continue; }
+       const uint32_t slotNo = HllUtil<A>::getLow26(pair) & configKmask;
+       const uint8_t value = HllUtil<A>::getValue(pair);
+@@ -87,12 +105,11 @@
+     }
+   }
+ 
+-  if (auxHashMap->getAuxCount() != auxCount) {
+-    make_deleter()(auxHashMap);
++  if (aux_ptr->getAuxCount() != auxCount) {
+     throw std::invalid_argument("Deserialized AuxHashMap has wrong number of entries");
+   }
+ 
+-  return auxHashMap;                                    
++  return aux_ptr.release();
+ }
+ 
+ template<typename A>
+@@ -106,6 +123,9 @@
+     lgArrInts = lgAuxArrInts;
+   }
+ 
++  if (lgArrInts > lgConfigK) {
++    throw std::invalid_argument("Possible corruption: AuxHashMap size exceeds lg_k");
++  }
+   AuxHashMap<A>* auxHashMap = new (ahmAlloc(allocator).allocate(1)) AuxHashMap<A>(lgArrInts, lgConfigK, allocator);
+   typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
+   aux_hash_map_ptr aux_ptr(auxHashMap, auxHashMap->make_deleter());
+@@ -131,7 +151,7 @@
+   }
+ 
+   if (auxHashMap->getAuxCount() != auxCount) {
+-    make_deleter()(auxHashMap);
++    // aux_ptr frees the map; freeing it here as well was a double free.
+     throw std::invalid_argument("Deserialized AuxHashMap has wrong number of entries");
+   }
+ 
+--- a/hll/include/CouponHashSet-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/CouponHashSet-internal.hpp	2026-11-16 22:03:05
+@@ -23,6 +23,8 @@
+ #include "CouponHashSet.hpp"
+ 
+ #include <cstring>
++#include <algorithm>
++#include <vector>
+ #include <exception>
+ #include <stdexcept>
+ 
+@@ -96,6 +98,11 @@
+   if (lgArrInts < hll_constants::LG_INIT_SET_SIZE) {
+     lgArrInts = HllUtil<>::computeLgArrInts(SET, couponCount, lgK);
+   }
++  // lgArrInts comes from the image and is used as a shift count; a set
++  // larger than 2^lgK slots cannot occur.
++  if (lgArrInts > lgK) {
++    throw std::invalid_argument("Possible corruption: CouponHashSet size exceeds lg_k");
++  }
+   // Don't set couponCount in sketch here;
+   // we'll set later if updatable, and increment with updates if compact
+   const uint32_t couponsInArray = (compactFlag ? couponCount : (1 << lgArrInts));
+@@ -105,24 +112,67 @@
+                                 + ", found: " + std::to_string(len));
+   }
+ 
+-  ChsAlloc chsa(allocator);
+-  CouponHashSet<A>* sketch = new (chsa.allocate(1)) CouponHashSet<A>(lgK, tgtHllType, allocator);
+-
++  // An updatable image carries the whole slot array and a separate count;
++  // they must agree, or serializing the sketch compactly later writes every
++  // non-empty slot into a buffer sized for the count (heap overflow).
+   if (compactFlag) {
+-    const uint8_t* curPos = data + hll_constants::HASH_SET_INT_ARR_START;
+-    uint32_t coupon;
+-    for (uint32_t i = 0; i < couponCount; ++i, curPos += sizeof(coupon)) {
+-      std::memcpy(&coupon, curPos, sizeof(coupon));
+-      sketch->couponUpdate(coupon);
++    // A compact image lists its coupons; each must be a real coupon (non-zero
++    // value field). Duplicates are merged by couponUpdate() below.
++    for (uint32_t i = 0; i < couponCount; ++i) {
++      uint32_t c;
++      std::memcpy(&c, data + hll_constants::HASH_SET_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
++      if (HllUtil<A>::getValue(c) == 0) {
++        throw std::invalid_argument("Possible corruption: invalid coupon in CouponHashSet image");
++      }
+     }
+   } else {
+-    sketch->coupons_.resize(1ULL << lgArrInts);
+-    sketch->couponCount_ = couponCount;
+-    std::memcpy(sketch->coupons_.data(),
+-                data + hll_constants::HASH_SET_INT_ARR_START,
+-                couponsInArray * sizeof(uint32_t));
++    // ...and each non-empty slot must hold a real coupon (non-zero value
++    // field), each coupon once.
++    std::vector<uint32_t> present;
++    for (uint32_t i = 0; i < couponsInArray; ++i) {
++      uint32_t c;
++      std::memcpy(&c, data + hll_constants::HASH_SET_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
++      if (c == hll_constants::EMPTY) continue;
++      if (HllUtil<A>::getValue(c) == 0) {
++        throw std::invalid_argument("Possible corruption: invalid coupon in CouponHashSet image");
++      }
++      present.push_back(c);
++    }
++    if (present.size() != couponCount) {
++      throw std::invalid_argument("Possible corruption: CouponHashSet count does not match its slots");
++    }
++    std::sort(present.begin(), present.end());
++    if (std::adjacent_find(present.begin(), present.end()) != present.end()) {
++      throw std::invalid_argument("Possible corruption: duplicate coupon in CouponHashSet image");
++    }
+   }
+ 
++  ChsAlloc chsa(allocator);
++  CouponHashSet<A>* sketch = new (chsa.allocate(1)) CouponHashSet<A>(lgK, tgtHllType, allocator);
++
++  // Insert each coupon rather than copying an updatable image's table: the
++  // image is not trusted to place its coupons where the hash probe finds
++  // them, and a misplaced one is later rewritten or lost (a round trip
++  // changed the set). Inserting gives a valid set the same contents. A valid
++  // set image never holds enough coupons to promote to an HLL array, so a
++  // promotion means corruption; its result is freed rather than leaked, as
++  // the compact path used to.
++  auto insert = [&sketch](uint32_t coupon) {
++    HllSketchImpl<A>* result = sketch->couponUpdate(coupon);
++    if (result != sketch) {
++      result->get_deleter()(result);
++      sketch->get_deleter()(sketch);
++      throw std::invalid_argument("Possible corruption: CouponHashSet image too large for a set");
++    }
++  };
++  if (!compactFlag) sketch->coupons_.resize(1ULL << lgArrInts);
++  const uint8_t* curPos = data + hll_constants::HASH_SET_INT_ARR_START;
++  uint32_t coupon;
++  for (uint32_t i = 0; i < couponsInArray; ++i, curPos += sizeof(coupon)) {
++    std::memcpy(&coupon, curPos, sizeof(coupon));
++    if (coupon != hll_constants::EMPTY) insert(coupon);
++  }
++
+   return sketch;
+ }
+ 
+@@ -164,6 +214,11 @@
+   if (lgArrInts < hll_constants::LG_INIT_SET_SIZE) {
+     lgArrInts = HllUtil<>::computeLgArrInts(SET, couponCount, lgK);
+   }
++  // lgArrInts comes from the image and is used as a shift count; a set
++  // larger than 2^lgK slots cannot occur.
++  if (lgArrInts > lgK) {
++    throw std::invalid_argument("Possible corruption: CouponHashSet size exceeds lg_k");
++  }
+ 
+   ChsAlloc chsa(allocator);
+   CouponHashSet<A>* sketch = new (chsa.allocate(1)) CouponHashSet<A>(lgK, tgtHllType, allocator);
+--- a/hll/include/CouponList-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/CouponList-internal.hpp	2026-11-16 22:03:05
+@@ -27,6 +27,7 @@
+ 
+ #include <algorithm>
+ #include <cmath>
++#include <cstring>
+ #include <stdexcept>
+ 
+ namespace datasketches {
+@@ -117,6 +118,30 @@
+                                 + ", found: " + std::to_string(len));
+   }
+ 
++  // An empty image holds no coupons, so it cannot count any: with the empty
++  // flag set the coupons are not read, and a non-zero count made a sketch of
++  // that many zero coupons (an estimate of nothing that is not zero).
++  if (emptyFlag && couponCount != 0) {
++    throw std::invalid_argument("Possible corruption: empty CouponList image with a non-zero count");
++  }
++  // The list's coupons come from the image: each must be a real coupon (a
++  // non-zero value field) and appear once, or the sketch counts coupons it
++  // does not hold and changes on the next round trip.
++  if (!emptyFlag) {
++    uint32_t seen[1u << hll_constants::LG_INIT_LIST_SIZE];
++    for (uint32_t i = 0; i < couponCount; ++i) {
++      uint32_t c;
++      std::memcpy(&c, data + hll_constants::LIST_INT_ARR_START + static_cast<size_t>(i) * sizeof(c), sizeof(c));
++      if (HllUtil<A>::getValue(c) == 0) {
++        throw std::invalid_argument("Possible corruption: invalid coupon in CouponList image");
++      }
++      for (uint32_t j = 0; j < i; ++j) {
++        if (seen[j] == c) throw std::invalid_argument("Possible corruption: duplicate coupon in CouponList image");
++      }
++      seen[i] = c;
++    }
++  }
++
+   ClAlloc cla(allocator);
+   CouponList<A>* sketch = new (cla.allocate(1)) CouponList<A>(lgK, tgtHllType, mode, allocator);
+   sketch->couponCount_ = couponCount;
+--- a/hll/include/HllArray-internal.hpp	2026-11-16 22:03:05
++++ b/hll/include/HllArray-internal.hpp	2026-11-16 22:03:05
+@@ -136,6 +136,11 @@
+   typedef std::unique_ptr<AuxHashMap<A>, std::function<void(AuxHashMap<A>*)>> aux_hash_map_ptr;
+   aux_hash_map_ptr aux_ptr;
+   if (auxCount > 0) { // necessarily TgtHllType == HLL_4
++    // Only HLL_4 has an aux map; the image could claim one for another type,
++    // and the cast to Hll4Array below would then be invalid.
++    if (tgtHllType != HLL_4) {
++      throw std::invalid_argument("Possible corruption: aux entries in a non-HLL_4 image");
++    }
+     uint8_t auxLgIntArrSize = data[4];
+     const size_t offset = hll_constants::HLL_BYTE_ARR_START + arrayBytes;
+     const uint8_t* auxDataStart = data + offset;
+@@ -153,6 +158,37 @@
+ 
+   std::memcpy(sketch->hllByteArr_.data(), data + hll_constants::HLL_BYTE_ARR_START, arrayBytes);
+ 
++  if (tgtHllType == HLL_4) {
++    // The HLL_4 array marks a slot whose value moved to the aux map with
++    // AUX_TOKEN, and the aux map holds the absolute value, at least
++    // curMin + AUX_TOKEN. The image carries both separately, so require them
++    // to agree: every token has an entry, and there are no other entries.
++    // Otherwise queries, printing and serialization of the sketch throw or
++    // read entries that are not there. Checked before the map is attached, so
++    // that on failure the sketch and the map are each freed once.
++    const Hll4Array<A>* h4 = static_cast<const Hll4Array<A>*>(sketch);
++    const uint32_t configK = 1u << lgK;
++    uint32_t tokens = 0;
++    bool consistent = true;
++    for (uint32_t slot = 0; slot < configK && consistent; ++slot) {
++      if (h4->getSlot(slot) != hll_constants::AUX_TOKEN) continue;
++      ++tokens;
++      if (auxHashMap == nullptr) { consistent = false; break; }
++      try {
++        if (static_cast<int>(auxHashMap->mustFindValueFor(slot)) < static_cast<int>(curMin) + hll_constants::AUX_TOKEN) {
++          consistent = false;
++        }
++      } catch (const std::invalid_argument&) {
++        consistent = false;
++      }
++    }
++    if (consistent && tokens != auxCount) consistent = false;
++    if (!consistent) {
++      sketch->get_deleter()(sketch);
++      throw std::invalid_argument("Possible corruption: HLL_4 aux entries do not match the array");
++    }
++  }
++
+   if (auxHashMap != nullptr) {
+     ((Hll4Array<A>*)sketch)->putAuxHashMap(auxHashMap);
+   }
+@@ -212,6 +248,9 @@
+   read(is, sketch->hllByteArr_.data(), sketch->getHllByteArrBytes());
+   
+   if (auxCount > 0) { // necessarily TgtHllType == HLL_4
++    if (tgtHllType != HLL_4) {
++      throw std::invalid_argument("Possible corruption: aux entries in a non-HLL_4 image");
++    }
+     uint8_t auxLgIntArrSize = listHeader[4];
+     AuxHashMap<A>* auxHashMap = AuxHashMap<A>::deserialize(is, lgK, auxCount, auxLgIntArrSize, comapctFlag, allocator);
+     ((Hll4Array<A>*)sketch)->putAuxHashMap(auxHashMap);
