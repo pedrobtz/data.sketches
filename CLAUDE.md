@@ -188,7 +188,10 @@ Workflows come from `pedrobtz/r-actions`:
   `vendor-upstream.yaml`, `assurance.yaml` and `cran-release.yaml` call the
   r-actions workflows of the same names.
 
-Required status checks are named `R-CMD-check / <leg>`.
+There are no required status checks, as in the other portfolio packages:
+a skipped matrix job reports under its unexpanded name, so required leg names
+never arrive on a docs-only pull request. Merge only when every check passed
+or was skipped.
 
 ## Vendored native code
 
