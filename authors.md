@@ -4,32 +4,40 @@
 
 - **Pedro Baltazar**. Author, maintainer, copyright holder.
 
-- **The Apache Software Foundation**. Contributor.  
-  Author of bundled Apache DataSketches C++ code
+- **The Apache Software Foundation**. Contributor, copyright holder.  
+  Bundled Apache DataSketches C++ library, src/vendor/datasketches/
 
-- **Stephan Brumme**. Contributor.  
-  Author of bundled xxhash64.h code
+- **Yahoo Inc.**. Copyright holder.  
+  Apache DataSketches C++, 2015-2018 and 2021-2025
+
+- **Verizon Media**. Copyright holder.  
+  Apache DataSketches C++, 2019-2020
+
+- **Stephan Brumme**. Contributor, copyright holder.  
+  Bundled xxhash64.h (MIT)
+
+- **Sun Microsystems, Inc.**. Copyright holder.  
+  FDLIBM log code adapted in bundled fdlibm_log.hpp
 
 - **Austin Appleby**. Contributor.  
-  Author of bundled public-domain MurmurHash3 code
+  Bundled public-domain MurmurHash3 code
 
 - **Sean Eron Anderson**. Contributor.  
-  Author of bundled public-domain bit-hack code used in
-  ceiling_power_of_2.hpp
+  Bundled public-domain bit-hack code in ceiling_power_of_2.hpp
 
 ## Citation
 
 Source:
-[`DESCRIPTION`](https://github.com/pedrobtz/data.sketches/blob/0.1.1/DESCRIPTION)
+[`DESCRIPTION`](https://github.com/pedrobtz/data.sketches/blob/main/DESCRIPTION)
 
 Baltazar P (2026). *data.sketches: Probabilistic Streaming Data
-Sketches*. R package version 0.1.1,
+Sketches*. R package version 0.1.2,
 <https://github.com/pedrobtz/data.sketches>.
 
     @Manual{,
       title = {data.sketches: Probabilistic Streaming Data Sketches},
       author = {Pedro Baltazar},
       year = {2026},
-      note = {R package version 0.1.1},
+      note = {R package version 0.1.2},
       url = {https://github.com/pedrobtz/data.sketches},
     }

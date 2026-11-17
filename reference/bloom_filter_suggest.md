@@ -29,15 +29,19 @@ bloom_filter_suggest_num_hashes(max_items, num_bits)
 
 - num_bits:
 
-  Number of bits in the filter, a single positive whole number up to
-  `2^53`.
+  Number of bits in the filter, a single positive whole number up to the
+  library's maximum of 17,179,868,864 (2 GiB).
 
 ## Value
 
 A single number: `bloom_filter_suggest_num_filter_bits()` returns the
 suggested `num_bits` (a double, which may exceed
 `.Machine$integer.max`); `bloom_filter_suggest_num_hashes()` returns the
-suggested `num_hashes` (an integer).
+suggested `num_hashes` (an integer, at most 65535). The suggested
+`num_bits` is the library's sizing rule and is not capped: above the
+maximum filter size,
+[`bloom_filter()`](https://pedrobtz.github.io/data.sketches/reference/bloom_filter.md)
+refuses it.
 
 ## Examples
 

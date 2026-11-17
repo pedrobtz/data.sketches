@@ -97,7 +97,7 @@ no `$rank_error()` accuracy accessor.
 ``` r
 sketch <- tdigest_double(rnorm(10000))
 sketch$quantile(c(0.5, 0.99, 0.999))
-#> [1] 0.02333156 2.31334826 3.01917129
+#> [1] -0.001245713  2.302636097  3.019171285
 sketch$rank(c(-1, 0, 1))
 #> [1] 0.1605379 0.5004536 0.8412543
 

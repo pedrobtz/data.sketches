@@ -17,7 +17,7 @@ seed)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">data.sketches</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -39,7 +39,7 @@ seed)."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>Suggest Bloom filter sizing parameters</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.1/R/filters-bloom.R" class="external-link"><code>R/filters-bloom.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/filters-bloom.R" class="external-link"><code>R/filters-bloom.R</code></a></small>
       <div class="d-none name"><code>bloom_filter_suggest.Rd</code></div>
     </div>
 
@@ -74,7 +74,7 @@ whole number up to <code>2^53</code>.</p></dd>
 
 <dt id="arg-num-bits">num_bits<a class="anchor" aria-label="anchor" href="#arg-num-bits"></a></dt>
 <dd><p>Number of bits in the filter, a single positive whole number
-up to <code>2^53</code>.</p></dd>
+up to the library's maximum of 17,179,868,864 (2 GiB).</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -82,7 +82,9 @@ up to <code>2^53</code>.</p></dd>
     <p>A single number: <code>bloom_filter_suggest_num_filter_bits()</code> returns
 the suggested <code>num_bits</code> (a double, which may exceed
 <code>.Machine$integer.max</code>); <code>bloom_filter_suggest_num_hashes()</code> returns the
-suggested <code>num_hashes</code> (an integer).</p>
+suggested <code>num_hashes</code> (an integer, at most 65535). The suggested
+<code>num_bits</code> is the library's sizing rule and is not capped: above the
+maximum filter size, <code><a href="bloom_filter.html">bloom_filter()</a></code> refuses it.</p>
     </div>
 
     <div class="section level2">

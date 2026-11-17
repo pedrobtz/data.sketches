@@ -19,7 +19,7 @@ weight, with a tight bound on the resulting sample size."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">data.sketches</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Released version">0.1.2</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -41,7 +41,7 @@ weight, with a tight bound on the resulting sample size."></head><body>
   <main id="main" class="col-md-9"><div class="page-header">
 
       <h1>EBPPS sketch for proportional-to-size sampling</h1>
-      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/0.1.1/R/sampling-reservoir.R" class="external-link"><code>R/sampling-reservoir.R</code></a></small>
+      <small class="dont-index">Source: <a href="https://github.com/pedrobtz/data.sketches/blob/main/R/sampling-reservoir.R" class="external-link"><code>R/sampling-reservoir.R</code></a></small>
       <div class="d-none name"><code>ebpps.Rd</code></div>
     </div>
 
@@ -142,10 +142,9 @@ matching the native implementation.</p>
 <span class="r-in"><span><span class="va">weights</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/stats/Uniform.html" class="external-link">runif</a></span><span class="op">(</span><span class="fl">1000</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span> <span class="op">&lt;-</span> <span class="fu">ebpps</span><span class="op">(</span><span class="va">items</span>, <span class="va">weights</span>, k <span class="op">=</span> <span class="fl">50</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">result</span><span class="op">(</span><span class="op">)</span></span></span>
-<span class="r-out co"><span class="r-pr">#&gt;</span>  [1]  851  671  428  420  432  584   86   10  775  495  582  655  705   48  523</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [16]  570  377  195   35  108  426  731  126  952   47    5  111  265  913  698</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [31]  630  573  235  307   82  835  895  562  238  171  690   63  812  900  404</span>
-<span class="r-out co"><span class="r-pr">#&gt;</span> [46]   46  601  743  667 1000</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span>  [1] 900 404 896  95 936 131 317 971 884 601 645 729 274 502  47 838 956 757 708</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [20] 211 168 241  45 819 410 682 380  70 275 911  44 959 341  88 969 829 505 497</span>
+<span class="r-out co"><span class="r-pr">#&gt;</span> [39] 805 383 226 630 347 951 112 689 550 361 607 575</span>
 <span class="r-in"><span><span class="va">sketch</span><span class="op">$</span><span class="fu">c</span><span class="op">(</span><span class="op">)</span></span></span>
 <span class="r-out co"><span class="r-pr">#&gt;</span> [1] 50</span>
 <span class="r-in"><span></span></span>
