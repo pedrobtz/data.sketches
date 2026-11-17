@@ -42,17 +42,14 @@ Every sketch listed in `DESCRIPTION` is implemented. Not implemented: typed
 file persistence (`write_sketch()`). Code comments still say it was deferred
 to 0.1.1; it was not built.
 
-Gaps from the shared rules, as of 2026-11-11:
+The CI, assurance and vendoring gaps from the shared rules were closed on
+2026-11-17 (#24, #34, #36). What is still open is tracked as `assurance`
+issues, from `.agents/assurance.md`.
 
-- No `.agents/assurance.md` yet, which `assurance.md` expects of every
-  package.
-- No `cran-release.yaml`, so the tag, the GitHub release and the `.9000`
-  bump are not automated (see Releasing below).
-- The `R-CMD-check.yaml` caller passes no `profile:` and has no
-  `workflow_dispatch:` or weekly `schedule:`, unlike r-actions' `examples/`.
-- The vendored tree is not under `src/vendor/`, and there is no
-  `PROVENANCE` file, checksum record, `tools/patches/` or own `nm -u` guard
-  (see Vendored native code).
+0.1.2 waits on Apache: the deserializer bugs behind the local patches were
+reported privately to the DataSketches PMC on 2026-11-16. Do not open public
+upstream issues or pull requests for them, and coordinate the release date
+with the PMC's disclosure timeline.
 
 ## Versions and dependents
 
@@ -65,10 +62,9 @@ six weeks. Sibling packages that depend on this one: none.
 
 ### Releasing
 
-Deviation, until a `cran-release.yaml` exists: releases go through a
-`release/<version>` branch that sets the version, `NEWS.md` and
-`cran-comments.md`. After CRAN accepts a release, bump to `<version>.9000` by
-hand.
+The shared process: `cran-release.yaml` tags the release, publishes the
+GitHub release from `NEWS.md` and opens the `.9000` bump pull request when
+`CRAN-SUBMISSION` is pushed.
 
 ## Commands
 
@@ -77,7 +73,8 @@ The shared commands apply. Specific to this package:
 ```sh
 Rscript -e 'devtools::document()'                # also regenerates cpp11 registration
 Rscript -e 'devtools::test(filter = "theta")'    # one sketch's test file
-Rscript tools/update-datasketches-cpp.R          # refresh vendored headers
+tools/vendor/fetch                               # rebuild src/vendor/ from upstream + patches
+tools/vendor/verify                              # tree == upstream + exactly the patches
 ```
 
 The first compile of `src/` takes a minute or two because every bridge file
@@ -118,8 +115,8 @@ and `.datasketches_alive` entry in `R/checks.R`, the S3 delegators in
 `_pkgdown.yml`.
 
 Generated files beyond roxygen's: `R/cpp11.R` and `src/cpp11.cpp` (by
-`devtools::document()`) and `R/datasketches-version.R` (by the updater
-script). Never edit them by hand. Deviation: `README.md` is the source; there
+`devtools::document()`) and `R/datasketches-version.R` (by
+`tools/vendor/fetch`). Never edit them by hand. Deviation: `README.md` is the source; there
 is no `README.Rmd`.
 
 ## Invariants that are easy to break
@@ -184,15 +181,27 @@ Workflows come from `pedrobtz/r-actions`:
   root and `main` into `/dev/`. It deploys with `clean: false` and
   `force: false` so it does not overwrite the coverage badge.
 
+- `native-checks.yaml` (sanitizers, valgrind, rchk, lto, analyzers,
+  CRAN-special), `gctorture.yaml`, `alloc-failure.yaml`, `fuzz.yaml`
+  (`tools/fuzz/`, a round-trip oracle over all 13 families), `vendor.yaml`
+  (plus the `nm -u` guard `tools/check-symbols` and `tools/vendor/tests/`),
+  `vendor-upstream.yaml`, `assurance.yaml` and `cran-release.yaml` call the
+  r-actions workflows of the same names.
+
 Required status checks are named `R-CMD-check / <leg>`.
 
 ## Vendored native code
 
-`src/datasketches/` is Apache DataSketches C++ 5.2.0 (Apache-2.0),
-header-only, with upstream `LICENSE` and `NOTICE` alongside. It has no local
-patches. Deviation: the tree lives in `src/datasketches/`, not
-`src/vendor/<lib>/`. `tools/update-datasketches-cpp.R` pins the version in
-`DATASKETCHES_VERSION`, downloads that upstream tag's tarball and replaces
-the tree. It also rewrites `R/datasketches-version.R`. After a bump, update
-`inst/COPYRIGHTS`, the include list in both `src/Makevars` and
-`src/Makevars.win` if components changed, and `NEWS.md`.
+`src/vendor/datasketches/` is Apache DataSketches C++ 5.3.1 (Apache-2.0),
+header-only, with upstream `LICENSE` and `NOTICE` alongside, and 18 local
+patches from `tools/patches/datasketches/`. `tools/vendor/manifest.tsv` pins
+the archive and its checksum; `src/vendor/PROVENANCE` lists the patches,
+says what each fixes and gives the update procedure. Never edit the tree by
+hand: change or add a patch, then run `tools/vendor/fetch` and
+`tools/vendor/verify`.
+
+When bumping the version, also read the upstream release notes for every
+release skipped, and file an `enhancement` issue for each new upstream
+feature data.sketches does not expose, with the R surface and the tests it
+needs (as #37 to #40 did for 5.3.0). Behaviour changes that reach R users
+through the library go in `NEWS.md` with the bump.
